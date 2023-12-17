@@ -1,0 +1,3 @@
+{# https://huggingface.co/TheBloke/Wizard-Vicuna-13B-Uncensored-GPTQ #}
+{# note some vicuna variant are diff #}
+{% for message in messages %}{% if message['role'] == 'user' %}{{ 'USER: ' + message['content'] + ' ASSISTANT: ' }}{% elif message['role'] == 'assistant'%}{{ message['content'] + ' ' }}{% elif message['role'] == 'system'%}{{ 'SYSTEM: ' + message['content'] + ' ' }}{% else %}{{ raise_exception('Only user and assistant roles are supported!')}}{% endif %}{% endfor %}
