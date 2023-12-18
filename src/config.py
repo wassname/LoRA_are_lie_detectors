@@ -14,7 +14,7 @@ class ExtractConfig(Serializable):
     datasets: tuple[str, ...] = ("amazon_polarity",  "super_glue:boolq", "glue:qnli", "imdb")
     """Names of HF datasets to use, e.g. `"super_glue:boolq"` or `"imdb"` `"glue:qnli"""
     
-    model: str = "wassname/phi-2-GPTQ_w_hidden_states"
+    model: str = "wassname/phi-2-w_hidden_states"
 
     batch_size: int = 5
 
@@ -31,3 +31,9 @@ class ExtractConfig(Serializable):
     
     intervention_fit_examples: int = 200
     """how many example to use for intervention calibration"""
+
+    max_examples: tuple[int, int] = (1000, 200)
+    """Maximum number of examples to use from each split of the dataset."""
+
+    seed: int = 42
+    """Random seed."""

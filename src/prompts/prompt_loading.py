@@ -26,7 +26,7 @@ import pandas as pd
 from loguru import logger
 from src.helpers.ds import shuffle_dataset_by
 from src.datasets.scores import choice2id, choice2ids, row_choice_ids
-from src.extraction.config import ExtractConfig
+from src.config import ExtractConfig
 from src.models.load import verbose_change_param, AutoConfig, AutoTokenizer, AutoModelForCausalLM, PreTrainedTokenizerBase
 
 

@@ -1,3 +1,5 @@
+
+notebooks/phi_azure_deleteme/
 lightning_logs/
 .pkl_cache/
 .ds/
@@ -164,4 +166,3 @@ cython_debug/
 *.bin
 
 .DS_Store
-
