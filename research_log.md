@@ -56,3 +56,19 @@ and if I use 16 bit and my 25g gpu it's out of mem. I can't use a batch of one o
 # 2023-12-19 06:58:21
 
 Oh I can have a batch of 2 is I have 1 shot and a smaller prompt length!
+
+
+Change my choice code to just go 
+```py
+batch_size = 3
+tokens = 102
+logits = torch.rand(batch_size,tokens)
+token_choices = torch.randint(tokens, (batch_size, 2))
+
+# Create a batch range
+batch_range = torch.arange(batch_size).unsqueeze(1)
+
+# Select the tokens
+selected_logits = logits[batch_range, token_choices]
+selected_logits
+```

@@ -25,7 +25,7 @@ from elk.extraction.balanced_sampler import BalancedSampler, FewShotSampler
 import pandas as pd
 from loguru import logger
 from src.helpers.ds import shuffle_dataset_by
-from src.helpers.scores import choice2id, choice2ids, row_choice_ids
+from src.helpers.scores import row_choice_ids
 from src.config import ExtractConfig
 from src.models.load import verbose_change_param, AutoConfig, AutoTokenizer, AutoModelForCausalLM, PreTrainedTokenizerBase
 

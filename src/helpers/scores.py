@@ -9,40 +9,23 @@ from transformers import (
     PreTrainedTokenizer,
     PreTrainedModel
 )
-from jaxtyping import Float
+from jaxtyping import Float, Int
 from torch import Tensor
 from einops import rearrange
+
 
 default_class2choices = [['No', 'Negative', 'negative', 'no', 'false', 'wrong', 'False', '0'], ['Yes', 'Positive', 'positive', 'yes', 'true', 'correct', 'right', 'True', '1']]
 
 
-def scores2choice_probs(row, class2_ids: List[List[int]], keys=["scores0"], prefix=""):
-    """ Given next_token scores (logits) we take only the subset the corresponds to our
-    - negative tokens (e.g. False, no, ...) 
-    - and positive tokens (e.g. Yes, yes, affirmative, ...).
-    
-    example output:
-    {'choice_probs1': array([0.39, 0.31 ], dtype=float32),
-    'ans1': 0.44,
-    'choice_probs2': array([0.44, 0.45], dtype=float32),
-    'ans2': 0.502,}
-    """
-    eps = 1e-5
-    out = {}
-    for key in keys:
-        scores = torch.tensor(row[key])
-        probs = F.softmax(scores, 0).numpy() # shape [tokens, inferences)
-        probs_c = [np.sum([probs[cc] for cc in c], 0) for c in class2_ids] # sum over alternate choices e.g. [['decrease', 'dec'],['inc', 'increase']]
-        probs_c = np.stack(probs_c, 0) # shape [choices, inferences]
-        
-        # balance of probs
-        out[prefix+key.replace("scores", "choice_probs")] = probs_c
-        out[prefix+key.replace("scores", "ans")] = probs_c[1] / (np.sum(probs_c, 0) + eps) # shape is [inferences]
+def select_choices(end_logits: Float[Tensor, "batch tokens"], choices: Int[Tensor, "batch choices alternates"],) -> Float[Tensor, "batch choices"]:
+    batch_size = end_logits.shape[0]
+    choices = torch.randint(51200, (2, 2, 2))
+    choices_flat = rearrange(choices, 'b c n -> b (c n)')
+    batch_range = torch.arange(batch_size).unsqueeze(1)
+    selected_logits = end_logits[batch_range, choices_flat]
+    selected_logits = rearrange(selected_logits, 'b (c n) -> b c n', c=choices.shape[1])
+    return selected_logits
 
-        # # balance of logits (much more exaggerated)
-        # scores_c = [scores[class2_ids[c]].sum() for c in class2_ids]
-        # out[key.replace("scores", "ansb")] = torch.tensor(scores_c).softmax(-1)[1].item()
-    return out
 
 @functools.lru_cache()
 def choice2id(tokenizer, c: str, whitespace_first=False) -> List[int]:
@@ -56,11 +39,6 @@ def choice2id(tokenizer, c: str, whitespace_first=False) -> List[int]:
     ids2 += tokenizer(f'{c}', add_special_tokens=False)["input_ids"]
     ids = list(set(ids2))
     
-    # print(ids2)
-    # print(ids)
-    # print([f'`{t}`' for t in tokenizer.batch_decode(ids, skip_special_tokens=True)])
-    # print([c.strip().startswith(tokenizer.decode(i)) for i in ids])
-
     # only include ones that decode to our original
     ids = [i for i in ids if c.strip().startswith(tokenizer.decode(i).strip()) and len(tokenizer.decode(i).strip())]
     assert len(ids)
@@ -89,19 +67,5 @@ def choice2ids(all_choices: List[List[str]], tokenizer: PreTrainedTokenizer) -> 
     return choices
 
 
-def logits2choice_probs2(logits, choiceids: List[List[int]]):
-    """calculate the probability for each group of choices."""
-    assert logits.ndim==1, f"expected logits to be 1d, got {logits.shape}"
-    assert logits.sum(0).abs()>2, 'pass in logits, not probs. you may have accidentally passed in a softmaxed values'
-    choiceids = [list(set(i)) for i in choiceids] # we don't want to double count
-    probs = torch.softmax(logits, 0)  # shape [tokens, inferences)
-    probs_c = torch.tensor([[probs[cc] for cc in c] for c in choiceids]).sum(1)  # sum over alternate choices e.g. [['decrease', 'dec'],['inc', 'increase']]
-    assert probs_c.sum()<=1.01, f"expected probs to sum to 1, got {probs_c.sum()}"
-    return probs_c
-
 def row_choice_ids(r, tokenizer):
     return choice2ids([c for c in r['answer_choices']], tokenizer)
-
-def get_choice_probs(log_probs: Float[Tensor, "batch tokens"], choice_ids: Float[Tensor, "batch choice alternates"]):
-    c = rearrange(choice_ids, 'b l v -> b (l v)')
-    return torch.stack([log_probs[torch.arange(len(c)), c[:, b]] for b in range(c.shape[1])]).T

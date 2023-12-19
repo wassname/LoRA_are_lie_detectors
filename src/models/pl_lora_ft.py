@@ -1,9 +1,9 @@
-import pytorch_lightning as pl
+import lightning as pl
 from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
 import torch.nn.functional as F
 from pytorch_optimizer import Ranger21
-from src.helpers.scores import get_choice_probs, logits2choice_probs2
+from src.helpers.scores import select_choices
 from einops import rearrange
 from transformers.modeling_outputs import ModelOutput
 
@@ -18,16 +18,10 @@ def postprocess_result(i, o):
 
     # choice probs
     ii = end_logits.shape[1]
-    choice_probs = torch.stack(
-        [
-            logits2choice_probs2(end_logits[:, j], i["choice_ids"])
-            for j in range(ii)
-        ],
-        1,
-    )
+    choice_probs = select_choices(end_logits, i['choice_ids'])
 
     # shape[choices, intervention_version]
-    binary_ans = choice_probs[1] / (torch.sum(choice_probs, 0) + 1e-12)
+    binary_ans = choice_probs[:, 1] / (choice_probs.sum(1).sum(2) + 1e-12)
 
     # we only want the last token
     o = ModelOutput(
@@ -44,11 +38,14 @@ def postprocess_result(i, o):
 
 
 def get_loss(batch, out, out_a):
+    """
+    loss which encourages it to switch it's answers with the base model
+    """
 
     log_probs_a = torch.log_softmax(out_a["logits"][:,-1,],-1,)
     log_probs = torch.log_softmax(out["logits"][:,-1,],-1,)
 
-    # get loss, so that our adapter returns switched probs for our choices (e.g. Yes <> No)
+    # switched probs for our choices (e.g. Yes <> No)
     id_neg = batch["choice_ids"][:, 0]
     id_pos = batch["choice_ids"][:, 1]
 
@@ -58,8 +55,8 @@ def get_loss(batch, out, out_a):
         log_probs_r[:, id_pos[:, i]] = log_probs[:, id_neg[:, i]]
 
     # Either just optimise for choice probs...
-    choice_probs_a = get_choice_probs(log_probs_a, batch["choice_ids"])
-    choice_probs_r = get_choice_probs(log_probs_r, batch["choice_ids"])
+    choice_probs_a = select_choices(log_probs_a, batch["choice_ids"])
+    choice_probs_r = select_choices(log_probs_r, batch["choice_ids"])
     loss_choices = F.kl_div(
         choice_probs_a, choice_probs_r, reduction="batchmean", log_target=True
     )
