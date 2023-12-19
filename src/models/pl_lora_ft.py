@@ -11,17 +11,16 @@ from transformers.modeling_outputs import ModelOutput
 def postprocess_result(i, o):
     assert torch.isfinite(o['logits']).all()
     # hidden states come at as lists of layers, lets stack them
-    hidden_states = rearrange(list(o['hidden_states']), 'l b t h -> b l t h')
+    hidden_states = rearrange(list(o['hidden_states']), 'l b t h -> b l t h').detach().cpu()
     end_hidden_states = hidden_states[:, -1]
-    end_logits = o["logits"][:, -1]
+    end_logits = o["logits"][:, -1].detach().cpu()
 
 
     # choice probs
-    ii = end_logits.shape[1]
-    choice_probs = select_choices(end_logits, i['choice_ids'])
+    choice_probs = select_choices(end_logits, i['choice_ids']).sum(-1)
 
     # shape[choices, intervention_version]
-    binary_ans = choice_probs[:, 1] / (choice_probs.sum(1).sum(2) + 1e-12)
+    binary_ans = choice_probs[:, 1] / (choice_probs.sum(1) + 1e-12)
 
     # we only want the last token
     o = ModelOutput(
@@ -34,6 +33,7 @@ def postprocess_result(i, o):
         label_true=i['label_true'],
         instructed_to_lie=i['instructed_to_lie'],
     )
+
     return o
 
 
@@ -55,8 +55,8 @@ def get_loss(batch, out, out_a):
         log_probs_r[:, id_pos[:, i]] = log_probs[:, id_neg[:, i]]
 
     # Either just optimise for choice probs...
-    choice_probs_a = select_choices(log_probs_a, batch["choice_ids"])
-    choice_probs_r = select_choices(log_probs_r, batch["choice_ids"])
+    choice_probs_a = select_choices(log_probs_a, batch["choice_ids"]).sum(-1)
+    choice_probs_r = select_choices(log_probs_r, batch["choice_ids"]).sum(-1)
     loss_choices = F.kl_div(
         choice_probs_a, choice_probs_r, reduction="batchmean", log_target=True
     )
@@ -65,8 +65,10 @@ def get_loss(batch, out, out_a):
     loss_all = F.kl_div(
         log_probs_a, log_probs_r, reduction="batchmean", log_target=True
     )
+    loss = loss_choices # + loss_all * 1e-8
 
-    loss = loss_choices  # + loss_all / 100
+    assert torch.isfinite(loss)
+
     return loss, loss_choices, loss_all
 
 
@@ -108,25 +110,17 @@ class AtapterFinetuner(pl.LightningModule):
         out_a = self(batch)
 
         if stage == "pred":
-            res = {f'{k}_base':v for k,v in postprocess_result(batch, out)}
-            res_a = {f'{k}_adapt':v for k,v in postprocess_result(batch, out_a)}
+            res = {f'{k}_base':v for k,v in postprocess_result(batch, out).items()}
+            res_a = {f'{k}_adapt':v for k,v in postprocess_result(batch, out_a).items()}
             return dict(
                 **res, **res_a
             )
         
         loss, loss_choices, loss_all = get_loss(batch, out, out_a)
+        assert torch.isfinite(loss)
 
         batch_size = batch["input_ids"].shape[0]
-        self.log_dict(
-            {
-                f"{stage}/loss": loss,
-                f"{stage}/loss_choices": loss_choices,
-                f"{stage}/loss_all": loss_all,
-            },
-            on_epoch=True,
-            on_step=True,
-            batch_size=batch_size,
-        )
+        self.log(f"{stage}/loss",loss, on_epoch=True, on_step=True, batch_size=batch_size)
         return loss
 
     def training_step(self, batch, batch_idx=0, dataloader_idx=0):
@@ -136,7 +130,7 @@ class AtapterFinetuner(pl.LightningModule):
         return self._step(batch, batch_idx, stage="val")
 
     def predict_step(self, batch, batch_idx=0, dataloader_idx=0):
-        return self._step(batch, batch_idx, stage="pred").cpu().detach()
+        return self._step(batch, batch_idx, stage="pred")
 
     def test_step(self, batch, batch_idx=0, dataloader_idx=0):
         return self._step(batch, batch_idx, stage="test")
