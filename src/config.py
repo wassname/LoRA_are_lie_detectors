@@ -16,17 +16,15 @@ class ExtractConfig(Serializable):
     
     model: str = "wassname/phi-2-w_hidden_states"
 
-    batch_size: int = 5
-
+    batch_size: int = 2
 
     prompt_format: str | None = 'phi'
     """if the tokenizer does not have a chat template you can set a custom one. see src/prompts/templates/prompt_formats/readme.md."""
     
-
-    num_shots: int = 2
+    num_shots: int = 1
     """Number of examples for few-shot prompts. If zero, prompts are zero-shot."""
 
-    max_length: int | None = 1000
+    max_length: int | None = 777
     """Maximum length of the input sequence passed to the tokenize encoder function"""
     
     intervention_fit_examples: int = 200
