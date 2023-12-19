@@ -9,6 +9,9 @@ from transformers import (
     PreTrainedTokenizer,
     PreTrainedModel
 )
+from jaxtyping import Float
+from torch import Tensor
+from einops import rearrange
 
 default_class2choices = [['No', 'Negative', 'negative', 'no', 'false', 'wrong', 'False', '0'], ['Yes', 'Positive', 'positive', 'yes', 'true', 'correct', 'right', 'True', '1']]
 
@@ -98,3 +101,7 @@ def logits2choice_probs2(logits, choiceids: List[List[int]]):
 
 def row_choice_ids(r, tokenizer):
     return choice2ids([c for c in r['answer_choices']], tokenizer)
+
+def get_choice_probs(log_probs: Float[Tensor, "batch tokens"], choice_ids: Float[Tensor, "batch choice alternates"]):
+    c = rearrange(choice_ids, 'b l v -> b (l v)')
+    return torch.stack([log_probs[torch.arange(len(c)), c[:, b]] for b in range(c.shape[1])]).T

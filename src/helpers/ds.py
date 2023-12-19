@@ -4,16 +4,16 @@ from datasets import Dataset
 import numpy as np
 
 
-def ds_keep_cols(ds: Dataset, cols: list) -> Dataset:
-    cols_all = set(ds.features.keys())
-    cols_drop = cols_all - set(cols)
-    return ds.remove_columns(cols_drop)
+# def ds_keep_cols(ds: Dataset, cols: list) -> Dataset:
+#     cols_all = set(ds.features.keys())
+#     cols_drop = cols_all - set(cols)
+#     return ds.remove_columns(cols_drop)
 
 
-def clear_mem():
-    gc.collect()
-    torch.cuda.empty_cache()
-    gc.collect()
+# def clear_mem():
+#     gc.collect()
+#     torch.cuda.empty_cache()
+#     gc.collect()
 
 
 def shuffle_dataset_by(ds, column):

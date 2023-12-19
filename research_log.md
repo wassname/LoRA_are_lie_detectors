@@ -47,7 +47,12 @@ bitsandbytes = "^0.41.3.post2" ?
 and if I use 16 bit and my 25g gpu it's out of mem. I can't use a batch of one or lightnign fauils
 
 
-- ... so don't use liughtning
+- ... so don't use lightning
 - or use Loraq https://github.com/huggingface/peft/blob/46a84bd395f1b486b7b076acfa8f6df3dfad26b8/examples/loftq_finetuning/README.md?plain=1#L2 
 - or work out how to use butsanybytes during train
 - or gradient accum?
+
+
+# 2023-12-19 06:58:21
+
+Oh I can have a batch of 2 is I have 1 shot and a smaller prompt length!
