@@ -105,5 +105,10 @@ which tiny models in 2023-12-20?
 
 - larger batch? no
 - that bug in choices? no
-- 4bit? no... in fact it fixed it. wtf
-- 
+- 4bit? no... in fact it fixed it. wtf!!
+
+# batch sizes?
+
+| model | quant | batch | gpu ram |
+| --- | --- | --- | --- |
+| phi-1_5 | 4bit | 3 | 24g |

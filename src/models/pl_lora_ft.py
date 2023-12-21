@@ -14,10 +14,11 @@ def postprocess_result(i, o):
     hidden_states = rearrange(list(o['hidden_states']), 'l b t h -> b l t h').detach().cpu()
     end_hidden_states = hidden_states[:, -1]
     end_logits = o["logits"][:, -1].detach().cpu()
+    choice_ids = i['choice_ids'].detach().cpu()
 
 
     # choice probs
-    choice_probs = select_choices(end_logits, i['choice_ids']).sum(2)
+    choice_probs = select_choices(end_logits, choice_ids).sum(2)
 
     # shape[choices, intervention_version]
     # assert choice_probs.shape[1]==2
@@ -97,7 +98,9 @@ class AtapterFinetuner(pl.LightningModule):
             input_ids=b["input_ids"],
             attention_mask=b["attention_mask"],
         )
-        b_in = {k: v.to(self.model.device) for k, v in b_in.items()}
+
+        # handled by accelerator
+        # b_in = {k: v.to(self.model.device) for k, v in b_in.items()}
 
         o = self.model(
             **b_in, use_cache=False, output_hidden_states=True, return_dict=True

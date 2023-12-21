@@ -20,7 +20,7 @@ default_class2choices = [['No', 'Negative', 'negative', 'no', 'false', 'wrong', 
 def select_choices(end_logits: Float[Tensor, "batch tokens"], choices: Int[Tensor, "batch choices alternates"],) -> Float[Tensor, "batch choices * alternates"]:
     batch_size = end_logits.shape[0]
     choices_flat = rearrange(choices, 'b c n -> b (c n)')
-    batch_range = torch.arange(batch_size).unsqueeze(1)
+    batch_range = torch.arange(batch_size).unsqueeze(1).to(choices_flat.device)
     selected_logits = end_logits[batch_range, choices_flat]
     selected_logits = rearrange(selected_logits, 'b (c n) -> b c n', c=choices.shape[1])
     return selected_logits

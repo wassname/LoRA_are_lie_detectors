@@ -23,7 +23,7 @@ def verbose_change_param(tokenizer, path, after):
     return tokenizer
 
 
-def load_model(model_repo =  "microsoft/phi-2", adaptor_path=None, pad_token_id=0, disable_exllama=True, device="auto",) -> Tuple[AutoModelForCausalLM, PreTrainedTokenizerBase]:
+def load_model(model_repo =  "microsoft/phi-2", adaptor_path=None, device="auto", bnb=True) -> Tuple[AutoModelForCausalLM, PreTrainedTokenizerBase]:
     """
     A uncensored and large coding ones might be best for lying.
     
@@ -34,6 +34,8 @@ def load_model(model_repo =  "microsoft/phi-2", adaptor_path=None, pad_token_id=
         # bnb_4bit_use_double_quant=False,
         # bnb_4bit_quant_type='nf4',
     )
+    if not bnb:
+        quantization_config = None
     model_options = dict(
         device_map=device,
         torch_dtype=torch.float16, 
