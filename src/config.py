@@ -29,8 +29,8 @@ class ExtractConfig(Serializable):
     max_length: int | None = 777
     """Maximum length of the input sequence passed to the tokenize encoder function"""
     
-    intervention_fit_examples: int = 200
-    """how many example to use for intervention calibration"""
+    # intervention_fit_examples: int = 200
+    # """how many example to use for intervention calibration"""
 
     max_examples: tuple[int, int] = (1000, 200)
     """Maximum number of examples to use from each split of the dataset."""

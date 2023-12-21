@@ -12,7 +12,7 @@ def postprocess_result(i, o):
     assert torch.isfinite(o['logits']).all()
     # hidden states come at as lists of layers, lets stack them
     hidden_states = rearrange(list(o['hidden_states']), 'l b t h -> b l t h').detach().cpu()
-    end_hidden_states = hidden_states[:, -1]
+    end_hidden_states = hidden_states[:, :, -1, :]
     end_logits = o["logits"][:, -1].detach().cpu()
     choice_ids = i['choice_ids'].detach().cpu()
 
