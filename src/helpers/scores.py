@@ -17,9 +17,8 @@ from einops import rearrange
 default_class2choices = [['No', 'Negative', 'negative', 'no', 'false', 'wrong', 'False', '0'], ['Yes', 'Positive', 'positive', 'yes', 'true', 'correct', 'right', 'True', '1']]
 
 
-def select_choices(end_logits: Float[Tensor, "batch tokens"], choices: Int[Tensor, "batch choices alternates"],) -> Float[Tensor, "batch choices"]:
+def select_choices(end_logits: Float[Tensor, "batch tokens"], choices: Int[Tensor, "batch choices alternates"],) -> Float[Tensor, "batch choices * alternates"]:
     batch_size = end_logits.shape[0]
-    choices = torch.randint(51200, (2, 2, 2))
     choices_flat = rearrange(choices, 'b c n -> b (c n)')
     batch_range = torch.arange(batch_size).unsqueeze(1)
     selected_logits = end_logits[batch_range, choices_flat]

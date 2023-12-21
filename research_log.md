@@ -72,3 +72,38 @@ batch_range = torch.arange(batch_size).unsqueeze(1)
 selected_logits = logits[batch_range, token_choices]
 selected_logits
 ```
+
+#  2023-12-20 07:47:59
+
+I was working.... but not with some of the changes loss is always inf... I need to find the change
+
+Could be
+- new selection logic?
+- disable adapter in a diff way
+- package version?
+
+# 2023-12-21 07:42:11 
+
+Other dapters.
+
+see [notes[(/home/wassname/Documents/syncthing/Markdown_notes/2023/12/21/llm_adapters.md)
+
+# 2023-12-21 08:42:37 tiny models?
+
+which tiny models in 2023-12-20? 
+
+
+| Model     | Size | boolq base | chat CommonReason (ARC_c)| instruct code (HumanEval) |  Notes |
+| ---       | ---  | ---   | --- |--- |--- |
+| Pythia-1B | 1.0B |  69.83  | 48.3 | 1.83 | . |
+| tinyllama | 1.1B | 63.1 | 53.86| 9.5 |  https://github.com/jzhang38/TinyLlama/blob/main/EVAL.md |
+| phi-1.5   | 1.3B | 75.8 | 44.9 | ~35 | https://arxiv.org/abs/2309.05463 |
+| phi-2     | 2.7B | 83.3 | ~53 | ~48 | not arxiv yet https://www.microsoft.com/en-us/research/blog/phi-2-the-surprising-power-of-small-language-models/ |
+
+
+# why inf
+
+- larger batch? no
+- that bug in choices? no
+- 4bit? no... in fact it fixed it. wtf
+- 

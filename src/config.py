@@ -14,7 +14,9 @@ class ExtractConfig(Serializable):
     datasets: tuple[str, ...] = ("amazon_polarity",  "super_glue:boolq", "glue:qnli", "imdb")
     """Names of HF datasets to use, e.g. `"super_glue:boolq"` or `"imdb"` `"glue:qnli"""
     
-    model: str = "wassname/phi-2-w_hidden_states"
+    # model: str = "wassname/phi-2-w_hidden_states"
+    # model: str = "/media/wassname/SGIronWolf/projects5/elk/sgd_probes_are_lie_detectors/phi-1_5"
+    model: str = "wassname/phi-1_5-w_hidden_states"
 
     batch_size: int = 2
 

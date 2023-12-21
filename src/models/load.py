@@ -38,7 +38,7 @@ def load_model(model_repo =  "microsoft/phi-2", adaptor_path=None, pad_token_id=
         device_map=device,
         torch_dtype=torch.float16, 
         trust_remote_code=True,
-        # quantization_config=quantization_config,
+        quantization_config=quantization_config,
 
         ## in the azure phi-repo they use these but you need to install flash-attn
         # flash_attn=True, 
@@ -50,7 +50,7 @@ def load_model(model_repo =  "microsoft/phi-2", adaptor_path=None, pad_token_id=
     # config.use_cache = False
 
     tokenizer = AutoTokenizer.from_pretrained(model_repo, use_fast=True, legacy=False)
-    tokenizer.pad_token_id = tokenizer.eos_token_id
+    tokenizer.pad_token_id = 0 # tokenizer.eos_token_id
     tokenizer.padding_side = 'left'
     tokenizer.truncation_side = 'left'
 

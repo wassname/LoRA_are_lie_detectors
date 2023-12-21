@@ -17,9 +17,10 @@ def postprocess_result(i, o):
 
 
     # choice probs
-    choice_probs = select_choices(end_logits, i['choice_ids']).sum(-1)
+    choice_probs = select_choices(end_logits, i['choice_ids']).sum(2)
 
     # shape[choices, intervention_version]
+    # assert choice_probs.shape[1]==2
     binary_ans = choice_probs[:, 1] / (choice_probs.sum(1) + 1e-12)
 
     # we only want the last token
@@ -42,8 +43,8 @@ def get_loss(batch, out, out_a):
     loss which encourages it to switch it's answers with the base model
     """
 
-    log_probs_a = torch.log_softmax(out_a["logits"][:,-1,],-1,)
-    log_probs = torch.log_softmax(out["logits"][:,-1,],-1,)
+    log_probs_a = torch.log_softmax(out_a["logits"][:, -1,], -1,)
+    log_probs = torch.log_softmax(out["logits"][:, -1,], -1,)
 
     # switched probs for our choices (e.g. Yes <> No)
     id_neg = batch["choice_ids"][:, 0]
@@ -53,12 +54,14 @@ def get_loss(batch, out, out_a):
     for i in range(id_neg.shape[1]):
         log_probs_r[:, id_neg[:, i]] = log_probs[:, id_pos[:, i]]
         log_probs_r[:, id_pos[:, i]] = log_probs[:, id_neg[:, i]]
+    log_probs_r = log_probs_r.detach()
 
     # Either just optimise for choice probs...
-    choice_probs_a = select_choices(log_probs_a, batch["choice_ids"]).sum(-1)
-    choice_probs_r = select_choices(log_probs_r, batch["choice_ids"]).sum(-1)
+    choice_lprobs_a = select_choices(log_probs_a, batch["choice_ids"])#.sum(2)
+    choice_lprobs_r = select_choices(log_probs_r, batch["choice_ids"])#.sum(2)
+    choice_lprobs_r = choice_lprobs_r.detach()
     loss_choices = F.kl_div(
-        choice_probs_a, choice_probs_r, reduction="batchmean", log_target=True
+        choice_lprobs_a, choice_lprobs_r, reduction="batchmean", log_target=True
     )
 
     # or constrain on all probs or just choices?
@@ -66,6 +69,7 @@ def get_loss(batch, out, out_a):
         log_probs_a, log_probs_r, reduction="batchmean", log_target=True
     )
     loss = loss_choices # + loss_all * 1e-8
+    loss = loss_all
 
     assert torch.isfinite(loss)
 
