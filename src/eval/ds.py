@@ -49,30 +49,31 @@ def qc_ds(ds):
 
 
     df['label_instructed'] = df['label_true'] ^ df['instructed_to_lie']
+    df['ans'] = df['binary_ans'] >0.5
 
 
     # check llm accuracy
     d = df.query('instructed_to_lie==False')
-    acc = (d.label_instructed==d.binary_ans).mean()
+    acc = (d.label_instructed==d['ans']).mean()
     assert np.isfinite(acc)
     print(f"\tacc    =\t{acc:2.2%} [N={len(d)}] - when the model is not lying... we get this task acc")
-    assert acc>0.3, "model cannot solve task"
+    assert acc>0.3, f"model cannot solve task acc={acc}"
 
     # check LLM lie freq
     d = df.query('instructed_to_lie==True')
-    acc = (d.label_instructed==d.binary_ans).mean()
+    acc = (d.label_instructed==d['ans']).mean()
     assert np.isfinite(acc)
     print(f"\tlie_acc=\t{acc:2.2%} [N={len(d)}] - when the model tries to lie... we get this acc")
-    assert acc>0.01, "no known lies"
+    assert acc>0.01, f"no known lies acc={acc}"
 
     # check LLM lie freq
     ds_known = filter_ds_to_known(ds, verbose=False)
     df_known = ds2df(ds_known)
     d = df_known.query('instructed_to_lie==True')
-    acc = (d.label_instructed==d.binary_ans).mean()
+    acc = (d.label_instructed==d['ans']).mean()
     assert np.isfinite(acc)
     print(f"\tknown_lie_acc=\t{acc:2.2%} [N={len(d)}] - when the model tries to lie and knows the answer... we get this acc")
-    assert acc>0.01, "no known lies"
+    assert acc>0.01, f"no known lies={acc}"
 
     # check choice coverage
     mean_prob = np.sum(ds['choice_probs'], 1).mean()

@@ -45,8 +45,8 @@ def test_intervention_quality2(ds_out, label_fn, tokenizer, thresh=0.03, take_di
     label = label_fn(ds_out)
 
     # collect hidden states
-    hs_normal = ds_out['end_hidden_states_base']
-    hs_intervene = ds_out['end_hidden_states_adapt']
+    hs_normal = ds_out['end_residual_stream_base']
+    hs_intervene = ds_out['end_residual_stream_adapt']
     if take_diff:
         print("taking diff")
         hs_normal = hs_normal.diff(1)

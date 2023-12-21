@@ -110,7 +110,7 @@ from src.eval.collect import generate_batches, manual_collect2
 # debugging
 # o = next(iter(generate_batches(dl_oos2, model)))
 
-ds_out = manual_collect2(dl_oos2, model)
+ds_out, f = manual_collect2(dl_oos2, model, dataset_name="oos2")
 
 
 from src.eval.helpers import test_intervention_quality2

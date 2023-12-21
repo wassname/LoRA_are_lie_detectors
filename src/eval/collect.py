@@ -47,7 +47,7 @@ def ds_hash(generate_batches, loader, model):
     return suffix
 
 
-def manual_collect2(loader: DataLoader, model: AutoModelForCausalLM, dataset_name='', split_type="train", info_kwargs={}):
+def manual_collect2(loader: DataLoader, model: AutoModelForCausalLM, dataset_name=''):
     hash = ds_hash(generate_batches, loader, model)
     f = root_folder / ".ds" / f"ds_{dataset_name}_{hash}"
     f.parent.mkdir(exist_ok=True, parents=True)
@@ -63,7 +63,7 @@ def manual_collect2(loader: DataLoader, model: AutoModelForCausalLM, dataset_nam
                 writer.write(o)
         writer.finalize() 
     
-    ds = Dataset.from_file(f)   
+    ds = Dataset.from_file(f).with_format("torch")
     return ds, f
 
 
