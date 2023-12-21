@@ -10,14 +10,8 @@ import numpy as np
 #     return ds.remove_columns(cols_drop)
 
 
-# def clear_mem():
-#     gc.collect()
-#     torch.cuda.empty_cache()
-#     gc.collect()
-
 
 def shuffle_dataset_by(ds, column):
-    # ds_tokens = ds.filter(lambda r: r["truncated"] == False)
     example_i = np.array(ds["example_i"])
     uniq_example_i = np.array(sorted(set(example_i)))
     shuffled_indices = np.random.permutation(uniq_example_i)

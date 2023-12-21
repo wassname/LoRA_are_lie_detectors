@@ -1,8 +1,8 @@
-# import torch
+import torch
 # import numpy as np
 # import transformers
 # import random
-# import gc
+import gc
 # import pandas as pd
 
 # def get_top_n(scores: torch.Tensor, tokenizer: transformers.PreTrainedTokenizer, n=10) -> pd.Series:
@@ -40,20 +40,50 @@
 #         x = x.detach().cpu().item()
 #     return x
 
-# def clear_mem():
-#     gc.collect()
-#     torch.cuda.empty_cache()
-#     gc.collect()
+def clear_mem():
+    gc.collect()
+    # get_accelerator().empty_cache()
+    # accelerator.free_memory()
+    torch.cuda.empty_cache()
+    gc.collect()
 
-# def detachcpu(x):
-#     """
-#     Trys to convert torch if possible a single item
-#     """
-#     if isinstance(x, torch.Tensor):
-#         # note apache parquet doesn't support half to we go for float https://github.com/huggingface/datasets/issues/4981
-#         x = x.detach().cpu()
-#         if x.squeeze().dim()==0:
-#             return x.item()
-#         return x
-#     else:
-#         return x
+def detachcpu(x):
+    """
+    Trys to convert torch if possible a single item
+    """
+    if isinstance(x, torch.Tensor):
+        # note apache parquet doesn't support half to we go for float https://github.com/huggingface/datasets/issues/4981
+        x = x.detach().cpu()
+        if x.squeeze().dim()==0:
+            return x.item()
+        return x
+    else:
+        return x
+
+def recursive_copy(x, clone=None, detach=None, retain_grad=None):
+    """
+    from baukit
+    
+    Copies a reference to a tensor, or an object that contains tensors,
+    optionally detaching and cloning the tensor(s).  If retain_grad is
+    true, the original tensors are marked to have grads retained.
+    """
+    if not clone and not detach and not retain_grad:
+        return x
+    if isinstance(x, torch.Tensor):
+        if retain_grad:
+            if not x.requires_grad:
+                x.requires_grad = True
+            x.retain_grad()
+        elif detach:
+            x = x.detach()
+        if clone:
+            x = x.clone()
+        return x
+    # Only dicts, lists, and tuples (and subclasses) can be copied.
+    if isinstance(x, dict):
+        return type(x)({k: recursive_copy(v) for k, v in x.items()})
+    elif isinstance(x, (list, tuple)):
+        return type(x)([recursive_copy(v) for v in x])
+    else:
+        assert False, f"Unknown type {type(x)} cannot be broken into tensors."

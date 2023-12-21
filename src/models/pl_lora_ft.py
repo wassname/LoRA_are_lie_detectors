@@ -6,27 +6,35 @@ from pytorch_optimizer import Ranger21
 from src.helpers.scores import select_choices
 from einops import rearrange
 from transformers.modeling_outputs import ModelOutput
+from src.helpers.torch import clear_mem, detachcpu, recursive_copy
 
+def hacky_sanitize_outputs(o):
+    """I can't find the mem leak, so lets just detach, cpu, clone, freemem."""
+    o = {k: detachcpu(v) for k, v in o.items()}
+    o = recursive_copy(o, detach=True, clone=True)
+    clear_mem()
+    return o
 
 def postprocess_result(i, o):
+
+    # note that the results are huge. It might be worth convertting to int16 or similar so we can save to disc as we go https://github.com/EleutherAI/elk/blob/84e99a36a5050881d85f1510a2486ce46ac1f942/elk/utils/typing.py#L16
     assert torch.isfinite(o['logits']).all()
     # hidden states come at as lists of layers, lets stack them
-    hidden_states = rearrange(list(o['hidden_states']), 'l b t h -> b l t h').detach().cpu()
+    hidden_states = rearrange(list(o['hidden_states']), 'l b t h -> b l t h').detach().cpu().float()
     end_hidden_states = hidden_states[:, :, -1, :]
-    end_logits = o["logits"][:, -1].detach().cpu()
-    choice_ids = i['choice_ids'].detach().cpu()
+    end_residual_stream = end_hidden_states.diff(1)
+
+    end_logits = o["logits"][:, -1].detach().cpu().float()
+    choice_ids = i['choice_ids'].detach().cpu().long()
 
 
-    # choice probs
     choice_probs = select_choices(end_logits, choice_ids).sum(2)
 
     # shape[choices, intervention_version]
-    # assert choice_probs.shape[1]==2
     binary_ans = choice_probs[:, 1] / (choice_probs.sum(1) + 1e-12)
 
-    # we only want the last token
-    o = ModelOutput(
-        end_hidden_states=end_hidden_states, 
+    o = dict(
+        end_residual_stream=end_residual_stream, 
         end_logits=end_logits,
 
         # maybe these ones should be postprocessing
@@ -36,6 +44,13 @@ def postprocess_result(i, o):
         instructed_to_lie=i['instructed_to_lie'],
     )
 
+    # why oh why do I get mem leaks like this
+    o = hacky_sanitize_outputs(o)
+
+    # we only want the last token
+    o = ModelOutput(
+        **o
+    )
     return o
 
 
@@ -48,8 +63,8 @@ def get_loss(batch, out, out_a):
     log_probs = torch.log_softmax(out["logits"][:, -1,], -1,)
 
     # switched probs for our choices (e.g. Yes <> No)
-    id_neg = batch["choice_ids"][:, 0]
-    id_pos = batch["choice_ids"][:, 1]
+    id_neg = batch["choice_ids"][:, 0].clone()
+    id_pos = batch["choice_ids"][:, 1].clone()
 
     log_probs_r = log_probs.clone()
     for i in range(id_neg.shape[1]):
@@ -58,8 +73,8 @@ def get_loss(batch, out, out_a):
     log_probs_r = log_probs_r.detach()
 
     # Either just optimise for choice probs...
-    choice_lprobs_a = select_choices(log_probs_a, batch["choice_ids"])#.sum(2)
-    choice_lprobs_r = select_choices(log_probs_r, batch["choice_ids"])#.sum(2)
+    choice_lprobs_a = select_choices(log_probs_a, batch["choice_ids"].clone())#.sum(2)
+    choice_lprobs_r = select_choices(log_probs_r, batch["choice_ids"].clone())#.sum(2)
     choice_lprobs_r = choice_lprobs_r.detach()
     loss_choices = F.kl_div(
         choice_lprobs_a, choice_lprobs_r, reduction="batchmean", log_target=True
@@ -70,7 +85,7 @@ def get_loss(batch, out, out_a):
         log_probs_a, log_probs_r, reduction="batchmean", log_target=True
     )
     loss = loss_choices # + loss_all * 1e-8
-    loss = loss_all
+    # loss = loss_all
 
     assert torch.isfinite(loss)
 
@@ -82,7 +97,7 @@ class AtapterFinetuner(pl.LightningModule):
         self,
         model: AutoModelForCausalLM,
         tokenizer: AutoTokenizer,
-        total_steps: int,
+        total_steps: int = 1,
         lr=4e-3,
         weight_decay=1e-9,
     ):
@@ -95,8 +110,8 @@ class AtapterFinetuner(pl.LightningModule):
 
     def forward(self, b):
         b_in = dict(
-            input_ids=b["input_ids"],
-            attention_mask=b["attention_mask"],
+            input_ids=b["input_ids"].clone(),
+            attention_mask=b["attention_mask"].clone(),
         )
 
         # handled by accelerator
@@ -105,7 +120,6 @@ class AtapterFinetuner(pl.LightningModule):
         o = self.model(
             **b_in, use_cache=False, output_hidden_states=True, return_dict=True
         )
-
         return o
 
     def _step(self, batch, batch_idx=0, stage="train"):
@@ -119,9 +133,10 @@ class AtapterFinetuner(pl.LightningModule):
         if stage == "pred":
             res = {f'{k}_base':v for k,v in postprocess_result(batch, out).items()}
             res_a = {f'{k}_adapt':v for k,v in postprocess_result(batch, out_a).items()}
-            return dict(
-                **res, **res_a
-            )
+            res = dict(**res, **res_a)
+            res_a = out = out_a = None
+            clear_mem()
+            return res
         
         loss, loss_choices, loss_all = get_loss(batch, out, out_a)
         assert torch.isfinite(loss)
@@ -137,13 +152,15 @@ class AtapterFinetuner(pl.LightningModule):
         return self._step(batch, batch_idx, stage="val")
 
     def predict_step(self, batch, batch_idx=0, dataloader_idx=0):
-        return self._step(batch, batch_idx, stage="pred")
+        with torch.no_grad():
+            return self._step(batch, batch_idx, stage="pred")
 
     def test_step(self, batch, batch_idx=0, dataloader_idx=0):
         return self._step(batch, batch_idx, stage="test")
 
     def configure_optimizers(self):
         """use ranger21 from  https://github.com/kozistr/pytorch_optimizer"""
+        assert self.hparams.total_steps>1
         optimizer = Ranger21(
             self.parameters(),
             lr=self.hparams.lr,

@@ -23,14 +23,14 @@ def verbose_change_param(tokenizer, path, after):
     return tokenizer
 
 
-def load_model(model_repo =  "microsoft/phi-2", adaptor_path=None, device="auto", bnb=True) -> Tuple[AutoModelForCausalLM, PreTrainedTokenizerBase]:
+def load_model(model_repo =  "microsoft/phi-2", adaptor_path=None, device="auto", bnb=True, dtype=torch.bfloat16) -> Tuple[AutoModelForCausalLM, PreTrainedTokenizerBase,]:
     """
     A uncensored and large coding ones might be best for lying.
     
     """
     quantization_config=BitsAndBytesConfig(
         load_in_4bit=True,
-        bnb_4bit_compute_dtype=torch.float16,  # bfloat16 is recommended
+        bnb_4bit_compute_dtype=dtype,  # bfloat16 is recommended
         # bnb_4bit_use_double_quant=False,
         # bnb_4bit_quant_type='nf4',
     )
@@ -38,7 +38,7 @@ def load_model(model_repo =  "microsoft/phi-2", adaptor_path=None, device="auto"
         quantization_config = None
     model_options = dict(
         device_map=device,
-        torch_dtype=torch.float16, 
+        torch_dtype=dtype, 
         trust_remote_code=True,
         quantization_config=quantization_config,
 
@@ -49,16 +49,25 @@ def load_model(model_repo =  "microsoft/phi-2", adaptor_path=None, device="auto"
     )
 
     config = AutoConfig.from_pretrained(model_repo, trust_remote_code=True,)
+    config.use_cache = False 
     # config.use_cache = False
 
     tokenizer = AutoTokenizer.from_pretrained(model_repo, use_fast=True, legacy=False)
-    tokenizer.pad_token_id = 0 # tokenizer.eos_token_id
+    tokenizer.pad_token_id = tokenizer.eos_token_id
     tokenizer.padding_side = 'left'
     tokenizer.truncation_side = 'left'
+    tokenizer.cls_token = tokenizer.eos_token
+    tokenizer.mask_token = tokenizer.eos_token
+
 
     model = AutoModelForCausalLM.from_pretrained(model_repo, config=config, 
                                                     **model_options)
     
+    # mem leak prevent?
+    model.config.use_cache = False         # required for gradient checkpointing
+    # model.enable_input_require_grads()     # required for gradient checkpointing
+    # model.gradient_checkpointing_enable()  # enable gradient checkpointing
+
     if adaptor_path is not None:
         model = peft.PeftModel.from_pretrained(model, adaptor_path)
     return model, tokenizer

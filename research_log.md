@@ -111,4 +111,17 @@ which tiny models in 2023-12-20?
 
 | model | quant | batch | gpu ram |
 | --- | --- | --- | --- |
-| phi-1_5 | 4bit | 3 | 24g |
+| phi-1_5 | bnb=4bit | 3 | 21g |
+
+note 16-true fails, 4bit helps?
+
+
+lightning options:
+- accelerator: gpu, or accelerate (seems to conflict with bnb)
+- precision, bf16-true (fails),bf16-mixed (uses more ram, likely because it undoes bnb)
+
+
+# can I modify peft to just do bias?
+
+https://github.com/huggingface/transformers/blob/cf32c941350cb296e4c2c9e26a9274291d515e90/src/transformers/integrations/peft.py#L268
+https://github.dev/huggingface/peft

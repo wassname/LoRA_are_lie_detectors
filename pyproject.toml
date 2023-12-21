@@ -8,7 +8,6 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = ">=3.10,<3.13"
-accelerate = "0.23.0"
 torch = {version = "^2.1.0+cu118", source = "pytorch"}
 simple-parsing = "^0.1.4"
 tqdm = "^4.66.1"
