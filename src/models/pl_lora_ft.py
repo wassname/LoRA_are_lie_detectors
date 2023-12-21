@@ -25,10 +25,11 @@ def postprocess_result(i, o):
     end_residual_stream = end_hidden_states.diff(1)
 
     end_logits = o["logits"][:, -1].detach().cpu().float()
+    probs = torch.softmax(end_logits, -1)
     choice_ids = i['choice_ids'].detach().cpu().long()
 
 
-    choice_probs = select_choices(end_logits, choice_ids).sum(2)
+    choice_probs = select_choices(probs, choice_ids).sum(2)
 
     # shape[choices, intervention_version]
     binary_ans = choice_probs[:, 1] / (choice_probs.sum(1) + 1e-12)

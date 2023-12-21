@@ -5,9 +5,9 @@ def filter_ds_to_known(ds1, verbose=True):
     """filter the dataset to only those where the model knows the answer"""
     
     # first get the rows where it answered the question correctly
-    df = ds2df(ds1)
+    df = ds2df(ds1).rename(columns=lambda x: x.replace('_base', ''))
     d = df.query('sys_instr_name=="truth"').set_index("example_i")
-    m1 = d.llm_ans==d.label_true
+    m1 = (d.binary_ans>0.5)==d.label_true
     known_indices = d[m1].index
     known_rows = df['example_i'].isin(known_indices)
     known_rows_i = df[known_rows].index
@@ -46,10 +46,10 @@ def ds2df(ds, cols=None):
 
 def qc_ds(ds):
     df = ds2df(ds.with_format('numpy')).rename(columns=lambda x: x.replace('_base', ''))
+    df['ans'] = df['binary_ans'] >0.5
 
 
     df['label_instructed'] = df['label_true'] ^ df['instructed_to_lie']
-    df['ans'] = df['binary_ans'] >0.5
 
 
     # check llm accuracy
@@ -68,7 +68,9 @@ def qc_ds(ds):
 
     # check LLM lie freq
     ds_known = filter_ds_to_known(ds, verbose=False)
-    df_known = ds2df(ds_known)
+    df_known = ds2df(ds_known).rename(columns=lambda x: x.replace('_base', ''))
+    df_known['ans'] = df_known['binary_ans'] >0.5
+    df_known['label_instructed'] = df_known['label_true'] ^ df_known['instructed_to_lie']
     d = df_known.query('instructed_to_lie==True')
     acc = (d.label_instructed==d['ans']).mean()
     assert np.isfinite(acc)
@@ -76,6 +78,6 @@ def qc_ds(ds):
     assert acc>0.01, f"no known lies={acc}"
 
     # check choice coverage
-    mean_prob = np.sum(ds['choice_probs'], 1).mean()
+    mean_prob = ds['choice_probs_adapt'].mean()
     print(f"\tchoice_cov=\t{mean_prob:2.2%} - Our choices accounted for a mean probability of this")
     assert mean_prob>0.1, "neither of the available choice very likely :(, try debuging your templates. Check: using the correct prompt, the whitespace is correct, the correct eos_tokens (if any)"
