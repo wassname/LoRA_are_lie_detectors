@@ -54,10 +54,11 @@ def ds2df(ds, cols=None):
     df = ds.select_columns(cols)
     df = pd.DataFrame([rows_item(r) for r in df])
 
-    df['choice_probs_adapt'] = np.sum(ds['choice_probs_adapt'], 1)
+    if 'choice_probs_adapt' in df.columns:
+        df['choice_probs'] = np.sum(df['choice_probs_adapt'], 1)
+        df['ans_adapt'] = df['binary_ans_adapt'] >0.5
     df['choice_probs_base'] = np.sum(ds['choice_probs_base'], 1)
     df['ans_base'] = df['binary_ans_base'] >0.5
-    df['ans_adapt'] = df['binary_ans_adapt'] >0.5
     df['label_instructed'] = df['label_true_base'] ^ df['instructed_to_lie_base']
     return df.copy()
 
@@ -97,7 +98,7 @@ def qc_dsdf(df):
     # check choice coverage
     mean_prob = df['choice_probs'].mean()
     print(f"\tchoice_cov=\t{mean_prob:2.2%}             - Our choices accounted for a mean probability of this")
-    assert mean_prob>0.1, "neither of the available choice very likely :(, try debuging your templates. Check: using the correct prompt, the whitespace is correct, the correct eos_tokens (if any)"
+    assert mean_prob>0.1, "neither of the available choice very likely {mean_prob:2.2%} :(, try debuging your templates. Check: using the correct prompt, the whitespace is correct, the correct eos_tokens (if any)"
 
 def qc_ds(ds):
     df = ds2df(ds)

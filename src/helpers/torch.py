@@ -54,8 +54,8 @@ def detachcpu(x):
     if isinstance(x, torch.Tensor):
         # note apache parquet doesn't support half to we go for float https://github.com/huggingface/datasets/issues/4981
         x = x.detach().cpu()
-        if x.squeeze().dim()==0:
-            return x.item()
+        # if x.squeeze().dim()==0:
+        #     return x.item()
         return x
     else:
         return x

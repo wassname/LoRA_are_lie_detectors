@@ -11,7 +11,7 @@ from src.models.pl_lora_ft import postprocess_result
 from src.config import root_folder
 
 @torch.no_grad
-def generate_batches(loader: DataLoader, model: AutoModelForCausalLM) -> dict:
+def generate_batches(loader: DataLoader, model: AutoModelForCausalLM, get_residual=True) -> dict:
 
     model.eval()
     for batch in tqdm(loader, 'collecting hidden states'):
@@ -19,14 +19,20 @@ def generate_batches(loader: DataLoader, model: AutoModelForCausalLM) -> dict:
             input_ids=batch["input_ids"].clone(),
             attention_mask=batch["attention_mask"].clone(),
         )
-        with model.disable_adapter():
+        if hasattr(model, 'disable_adapter'):
+            with model.disable_adapter():
+                out = model(**b_in, use_cache=False, output_hidden_states=True, return_dict=True)
+                res = {f'{k}_base':v for k,v in postprocess_result(batch, out, get_residual=get_residual).items()}
+                del out
+            out_a = model(**b_in, use_cache=False, output_hidden_states=True, return_dict=True)
+            res_a = {f'{k}_adapt':v for k,v in postprocess_result(batch, out_a, get_residual=get_residual).items()}
+            del out_a
+        else:
             out = model(**b_in, use_cache=False, output_hidden_states=True, return_dict=True)
-            res = {f'{k}_base':v for k,v in postprocess_result(batch, out).items()}
-            del out
+            res = {f'{k}_base':v for k,v in postprocess_result(batch, out, get_residual=get_residual).items()}
+            res_a = {}
+            logger.warning("model does not have disable_adapter")
 
-        out_a = model(**b_in, use_cache=False, output_hidden_states=True, return_dict=True)
-        res_a = {f'{k}_adapt':v for k,v in postprocess_result(batch, out_a).items()}
-        del out_a
 
         o = dict(**res, **res_a)
         res = res_a = out = out_a = b_in = None
@@ -43,13 +49,13 @@ def ds_hash(**kwargs):
     return suffix
 
 
-def manual_collect2(loader: DataLoader, model: AutoModelForCausalLM, dataset_name=''):
+def manual_collect2(loader: DataLoader, model: AutoModelForCausalLM, dataset_name='', get_residual=True):
     hash = ds_hash(generate_batches=generate_batches, loader=loader, model=model)
     f = root_folder / ".ds" / f"ds_{dataset_name}_{hash}"
     f.parent.mkdir(exist_ok=True, parents=True)
     f = str(f)
     logger.info(f"creating dataset {f}")
-    iterator = generate_batches(loader, model)
+    iterator = generate_batches(loader, model, get_residual=get_residual)
     with ArrowWriter(path=f, writer_batch_size=6) as writer: 
         for bo in iterator:
             # dict_of_batches_to_batch_of_dicts 

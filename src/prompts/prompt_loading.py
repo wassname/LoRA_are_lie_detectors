@@ -297,7 +297,19 @@ def _convert_to_prompts(
 
     return prompts
 
-
+def format_prompt(tokenizer, messages):
+    # if not chat template is present, load it from structure.yaml onto tokenizer
+    # https://huggingface.co/docs/transformers/main/chat_templating
+    try:
+        q = tokenizer.apply_chat_template(messages, tokenize=False)
+    except TemplateError as e:
+        if 'Conversation roles must alternate user/assistant/user/assistant/...' in str(e):
+            system = messages[0]['content']
+            q = tokenizer.apply_chat_template(messages[1:], tokenize=False)
+            q = system + q
+        else:
+            raise e
+    return q
 
 def load_preproc_dataset(ds_name: str, tokenizer: PreTrainedTokenizerBase, N:int, prompt_format:str = None, split_type:str="train", seed=42, num_shots=1, max_length=999) -> Dataset:
     ds_prompts = Dataset.from_generator(
@@ -322,19 +334,7 @@ def load_preproc_dataset(ds_name: str, tokenizer: PreTrainedTokenizerBase, N:int
     # We do it as transforms on a huggingface dataset.
     # In this case we use multishot examples from train, and use the test set to generated the hidden states dataset. We will test generalisation on a whole new dataset.
     
-    def format_prompt(tokenizer, messages):
-        # if not chat template is present, load it from structure.yaml onto tokenizer
-        # https://huggingface.co/docs/transformers/main/chat_templating
-        try:
-            q = tokenizer.apply_chat_template(messages, tokenize=False)
-        except TemplateError as e:
-            if 'Conversation roles must alternate user/assistant/user/assistant/...' in str(e):
-                system = messages[0]['content']
-                q = tokenizer.apply_chat_template(messages[1:], tokenize=False)
-                q = system + q
-            else:
-                raise e
-        return q
+
 
     ds_tokens = (
         ds_prompts

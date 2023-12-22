@@ -15,14 +15,13 @@ def hacky_sanitize_outputs(o):
     clear_mem()
     return o
 
-def postprocess_result(i, o):
+
+
+def postprocess_result(i, o, get_residual=True):
 
     # note that the results are huge. It might be worth convertting to int16 or similar so we can save to disc as we go https://github.com/EleutherAI/elk/blob/84e99a36a5050881d85f1510a2486ce46ac1f942/elk/utils/typing.py#L16
     assert torch.isfinite(o['logits']).all()
-    # hidden states come at as lists of layers, lets stack them
-    hidden_states = rearrange(list(o['hidden_states']), 'l b t h -> b l t h').detach().cpu().float()
-    end_hidden_states = hidden_states[:, :, -1, :]
-    end_residual_stream = end_hidden_states.diff(1)
+    
 
     end_logits = o["logits"][:, -1].detach().cpu().float()
     probs = torch.softmax(end_logits, -1)
@@ -35,7 +34,6 @@ def postprocess_result(i, o):
     binary_ans = choice_probs[:, 1] / (choice_probs.sum(1) + 1e-12)
 
     o = dict(
-        end_residual_stream=end_residual_stream, 
         end_logits=end_logits,
 
         # maybe these ones should be postprocessing
@@ -48,6 +46,12 @@ def postprocess_result(i, o):
         ds_string=i['ds_string'],
         template_name=i['template_name'],
     )
+    if get_residual:
+        # hidden states come at as lists of layers, lets stack them
+        hidden_states = rearrange(list(o['hidden_states']), 'l b t h -> b l t h').detach().cpu().float()
+        end_hidden_states = hidden_states[:, :, -1, :]
+        end_residual_stream = end_hidden_states.diff(1)
+        o['end_residual_stream'] = end_residual_stream
 
     # why oh why do I get mem leaks like this
     o = hacky_sanitize_outputs(o)
