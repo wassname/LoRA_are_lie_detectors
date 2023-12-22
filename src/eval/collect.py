@@ -12,7 +12,8 @@ from src.config import root_folder
 
 @torch.no_grad
 def generate_batches(loader: DataLoader, model: AutoModelForCausalLM, get_residual=True) -> dict:
-
+    if not hasattr(model, 'disable_adapter'):
+        logger.warning("model does not have disable_adapter")
     model.eval()
     for batch in tqdm(loader, 'collecting hidden states'):
         b_in = dict(
@@ -31,8 +32,6 @@ def generate_batches(loader: DataLoader, model: AutoModelForCausalLM, get_residu
             out = model(**b_in, use_cache=False, output_hidden_states=True, return_dict=True)
             res = {f'{k}_base':v for k,v in postprocess_result(batch, out, get_residual=get_residual).items()}
             res_a = {}
-            logger.warning("model does not have disable_adapter")
-
 
         o = dict(**res, **res_a)
         res = res_a = out = out_a = b_in = None

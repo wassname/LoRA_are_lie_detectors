@@ -33,7 +33,7 @@ def postprocess_result(i, o, get_residual=True):
     # shape[choices, intervention_version]
     binary_ans = choice_probs[:, 1] / (choice_probs.sum(1) + 1e-12)
 
-    o = dict(
+    out = dict(
         end_logits=end_logits,
 
         # maybe these ones should be postprocessing
@@ -51,54 +51,19 @@ def postprocess_result(i, o, get_residual=True):
         hidden_states = rearrange(list(o['hidden_states']), 'l b t h -> b l t h').detach().cpu().float()
         end_hidden_states = hidden_states[:, :, -1, :]
         end_residual_stream = end_hidden_states.diff(1)
-        o['end_residual_stream'] = end_residual_stream
+        out['end_residual_stream'] = end_residual_stream
 
     # why oh why do I get mem leaks like this
-    o = hacky_sanitize_outputs(o)
+    out = hacky_sanitize_outputs(out)
 
     # we only want the last token
-    o = ModelOutput(
-        **o
+    out = ModelOutput(
+        **out
     )
-    return o
+    return out
 
 
-def get_loss(batch, out, out_a):
-    """
-    loss which encourages it to switch it's answers with the base model
-    """
 
-    log_probs_a = torch.log_softmax(out_a["logits"][:, -1,], -1,)
-    log_probs = torch.log_softmax(out["logits"][:, -1,], -1,)
-
-    # switched probs for our choices (e.g. Yes <> No)
-    id_neg = batch["choice_ids"][:, 0].clone()
-    id_pos = batch["choice_ids"][:, 1].clone()
-
-    log_probs_r = log_probs.clone()
-    for i in range(id_neg.shape[1]):
-        log_probs_r[:, id_neg[:, i]] = log_probs[:, id_pos[:, i]]
-        log_probs_r[:, id_pos[:, i]] = log_probs[:, id_neg[:, i]]
-    log_probs_r = log_probs_r.detach()
-
-    # Either just optimise for choice probs...
-    choice_lprobs_a = select_choices(log_probs_a, batch["choice_ids"].clone())#.sum(2)
-    choice_lprobs_r = select_choices(log_probs_r, batch["choice_ids"].clone())#.sum(2)
-    choice_lprobs_r = choice_lprobs_r.detach()
-    loss_choices = F.kl_div(
-        choice_lprobs_a, choice_lprobs_r, reduction="batchmean", log_target=True
-    )
-
-    # or constrain on all probs or just choices?
-    loss_all = F.kl_div(
-        log_probs_a, log_probs_r, reduction="batchmean", log_target=True
-    )
-    loss = loss_choices # + loss_all * 1e-8
-    # loss = loss_all
-
-    assert torch.isfinite(loss)
-
-    return loss, loss_choices, loss_all
 
 
 class AtapterFinetuner(pl.LightningModule):
@@ -130,6 +95,46 @@ class AtapterFinetuner(pl.LightningModule):
             **b_in, use_cache=False, output_hidden_states=True, return_dict=True
         )
         return o
+    
+    def get_loss(self, batch, out, out_a):
+        """
+        loss which encourages it to switch it's answers with the base model
+        """
+
+        log_probs_a = torch.log_softmax(out_a["logits"][:, -1,], -1,)
+        log_probs = torch.log_softmax(out["logits"][:, -1,], -1,)
+
+        # switched probs for our choices (e.g. Yes <> No)
+        id_neg = batch["choice_ids"][:, 0].clone()
+        id_pos = batch["choice_ids"][:, 1].clone()
+
+        log_probs_r = log_probs.clone()
+
+        # batch['instructed_to_lie']
+        # TODO try making it a perfect lier, e.g. when instructed to lie
+        for i in range(id_neg.shape[1]):
+            log_probs_r[:, id_neg[:, i]] = log_probs[:, id_pos[:, i]]
+            log_probs_r[:, id_pos[:, i]] = log_probs[:, id_neg[:, i]]
+        log_probs_r = log_probs_r.detach()
+
+        # Either just optimise for choice probs...
+        choice_lprobs_a = select_choices(log_probs_a, batch["choice_ids"].clone())#.sum(2)
+        choice_lprobs_r = select_choices(log_probs_r, batch["choice_ids"].clone())#.sum(2)
+        choice_lprobs_r = choice_lprobs_r.detach()
+        loss_choices = F.kl_div(
+            choice_lprobs_a, choice_lprobs_r, reduction="batchmean", log_target=True
+        )
+
+        # or constrain on all probs or just choices?
+        loss_all = F.kl_div(
+            log_probs_a, log_probs_r, reduction="batchmean", log_target=True
+        )
+        loss = loss_choices # + loss_all * 1e-8
+        # loss = loss_all
+
+        assert torch.isfinite(loss)
+
+        return loss, loss_choices, loss_all
 
     def _step(self, batch, batch_idx=0, stage="train"):
         with torch.no_grad():
@@ -147,7 +152,7 @@ class AtapterFinetuner(pl.LightningModule):
             clear_mem()
             return res
         
-        loss, loss_choices, loss_all = get_loss(batch, out, out_a)
+        loss, loss_choices, loss_all = self.get_loss(batch, out, out_a)
         assert torch.isfinite(loss)
 
         batch_size = batch["input_ids"].shape[0]

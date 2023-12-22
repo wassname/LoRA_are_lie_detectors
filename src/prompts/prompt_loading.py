@@ -7,7 +7,7 @@ from collections import Counter
 from random import Random
 from typing import Any, Iterator, Literal, List, Dict
 from pathlib import Path
-import datasets
+# import datasets
 import json
 from jinja2 import TemplateError
 from datasets import ClassLabel, Dataset, Value, load_dataset
@@ -20,6 +20,7 @@ from elk.utils import (
     infer_label_column,
     select_split,
 )
+import datasets
 import functools
 from elk.extraction.balanced_sampler import BalancedSampler, FewShotSampler
 import pandas as pd
@@ -73,7 +74,6 @@ def load_prompts(
     template_path: str | None = None,
     rank: int = 0,
     world_size: int = 1,
-    prompt_format: str="chatml",
     prompt_sampler = sample_n_true_y_false_prompts,
     N=np.inf,
 ) -> Iterator[dict]:
@@ -89,7 +89,6 @@ def load_prompts(
         template_path: Path to feed into `DatasetTemplates` for loading templates.
         rank: The rank of the current process. Defaults to 0.
         world_size: The number of processes. Defaults to 1.
-        prompt_format: which prompt format to use e.g. vicuna, llama, chatml
         prompt_sampler: when given an unbalanced set of true and false prompts this might take one of each randomly
 
     Returns:
@@ -172,7 +171,6 @@ def load_prompts(
             rng=rng,
             sys_instructions=sys_instructions,
             fewshot_iter=fewshot_iter,
-            prompt_format=prompt_format,
         )
         prompts = [{'ds_string': ds_string, 'example_i':i, **p} for p in prompts]
         
@@ -212,10 +210,8 @@ def _convert_to_prompts(
     rng: Random,
     sys_instructions: Dict[bool, Dict[str, str]] = default_sys_instructions,
     fewshot_iter: Iterator[list[dict]] | None = None,
-    prompt_format: str = "chatml",
 ) -> list:
     """Prompt-generating function to pass to `IterableDataset.map`."""
-    # prompt_template = load_prompt_structure(prompt_format=prompt_format)
     example = cast_example(example)
     prompts = []
     templates = list(prompter.templates.values())
@@ -311,7 +307,27 @@ def format_prompt(tokenizer, messages):
             raise e
     return q
 
+
+def load_preproc_datasets(dataset_names: List[str], tokenizer: PreTrainedTokenizerBase, N:int, prompt_format:str = None, split_type:str="train", seed=42, num_shots=1, max_length=999):
+    datasets2 = []
+    n = N//len(dataset_names)+1
+    for ds_name in dataset_names:
+        ds_tokens1 = load_preproc_dataset(
+            ds_name,
+            tokenizer,
+            N=n,
+            seed=seed,
+            num_shots=num_shots,
+            max_length=max_length,
+            prompt_format=prompt_format,
+        ).with_format("torch")
+        datasets2.append(ds_tokens1)
+    ds_tokens = datasets.interleave_datasets(datasets2)
+    return ds_tokens
+
+
 def load_preproc_dataset(ds_name: str, tokenizer: PreTrainedTokenizerBase, N:int, prompt_format:str = None, split_type:str="train", seed=42, num_shots=1, max_length=999) -> Dataset:
+    rng = Random(seed)
     ds_prompts = Dataset.from_generator(
         load_prompts,
         gen_kwargs=dict(
@@ -320,21 +336,22 @@ def load_preproc_dataset(ds_name: str, tokenizer: PreTrainedTokenizerBase, N:int
             split_type=split_type,
             # template_path=template_path,
             seed=seed,
-            # prompt_format=prompt_format,
             N=N*3,
         ),
     )
     
     
-    if prompt_format:
-        tokenizer.chat_template = load_prompt_structure(prompt_format=prompt_format)
-
     # ## Format prompts
     # The prompt is the thing we most often have to change and debug. So we do it explicitly here.
     # We do it as transforms on a huggingface dataset.
     # In this case we use multishot examples from train, and use the test set to generated the hidden states dataset. We will test generalisation on a whole new dataset.
-    
-
+    if tokenizer.chat_template is None:
+        if prompt_format is not None:
+            logger.info(f"setting tokenizer chat template to {prompt_format}")
+            tokenizer.chat_template = load_prompt_structure(prompt_format=prompt_format)
+        else:
+            logger.error(f"tokenizer has no chat template, and you have not set one. Using default one which might lead to poor performance. Set it in the config")
+            logger.debug(f"tokenizer already has a chat template: \n\n{tokenizer.chat_template}\n\n. overriding with {prompt_format}")
 
     ds_tokens = (
         ds_prompts
@@ -369,7 +386,7 @@ def load_preproc_dataset(ds_name: str, tokenizer: PreTrainedTokenizerBase, N:int
     ds_tokens = ds_tokens.filter(lambda r: r["truncated"] == False)
 
     # print('num_rows', ds_tokens.num_rows)
-    ds_tokens = shuffle_dataset_by(ds_tokens, 'example_i')
+    ds_tokens = shuffle_dataset_by(ds_tokens, 'example_i', rng=rng)
     # print('num_rows', ds_tokens.num_rows)
     
     # ## Filter out truncated examples

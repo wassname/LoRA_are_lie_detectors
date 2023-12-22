@@ -131,7 +131,54 @@ Tried phi-1.5 and it got 55% acc, low.
 Phi-2 52%, wtf
 with 2 shot it was 68%... OK I see the problem
 
-Now try phi-2. Maybe I need instruction tuned. Or more shots
-Or filter out unkown ones?
-Or try to not make a flip model, but a lying model.
-Or more epochs?
+- [ ] Now try phi-2. Maybe I need instruction tuned. Or more shots
+- [ ] Or filter out unkown ones?
+- [ ] Or try to not make a flip model, but a lying model.
+- [ ] Or more epochs?
+
+
+# model acc
+
+does the prompt format matter?
+- phi 96%
+- alpaca 84%
+- chatml 60%
+
+hmm
+{'Walmart-the-bag/phi-2-uncensored': 0.7304964539007093,
+ 'Yhyu13/phi-2-sft-alpaca_gpt4_en-ep1': 0.7872340425531915,
+ 'wassname/phi-2-w_hidden_states': 0.7659574468085106,
+ 'wassname/phi-1_5-w_hidden_states': 0.6312056737588653}
+
+for Walmart-the-bag/phi-2-uncensored:
+with base model
+	balance=	51.41% [N=284]
+	acc    =	73.05% [N=141]      - when the model is not lying... we get this task acc
+	lie_acc=	35.66% [N=143]      - when the model tries to lie... we get this acc
+	known_lie_acc=	25.71% [N=70]      - when the model tries to lie and knows the answer... we get this acc
+	choice_cov=	87.37%             - Our choices accounted for a mean probability of this
+
+for Yhyu13/phi-2-sft-alpaca_gpt4_en-ep1:
+with base model
+	balance=	51.41% [N=284]
+	acc    =	78.72% [N=141]      - when the model is not lying... we get this task acc
+	lie_acc=	27.97% [N=143]      - when the model tries to lie... we get this acc
+	known_lie_acc=	27.06% [N=85]      - when the model tries to lie and knows the answer... we get this acc
+	choice_cov=	86.58%             - Our choices accounted for a mean probability of this
+
+for wassname/phi-2-w_hidden_states:
+with base model
+	balance=	51.41% [N=284]
+	acc    =	76.60% [N=141]      - when the model is not lying... we get this task acc
+	lie_acc=	28.67% [N=143]      - when the model tries to lie... we get this acc
+	known_lie_acc=	26.58% [N=79]      - when the model tries to lie and knows the answer... we get this acc
+	choice_cov=	83.37%             - Our choices accounted for a mean probability of this
+wassname/phi-1_5-w_hidden_states
+
+for wassname/phi-1_5-w_hidden_states:
+with base model
+	balance=	51.41% [N=284]
+	acc    =	63.12% [N=141]      - when the model is not lying... we get this task acc
+	lie_acc=	39.16% [N=143]      - when the model tries to lie... we get this acc
+	known_lie_acc=	36.07% [N=61]      - when the model tries to lie and knows the answer... we get this acc
+	choice_cov=	75.41%             - Our choices accounted for a mean probability of this

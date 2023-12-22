@@ -10,6 +10,7 @@ import torch
 from loguru import logger
 from typing import Tuple
 import peft
+from src.models.phi.model_phi import PhiForCausalLMWHS
 
 def verbose_change_param(tokenizer, path, after):
     
@@ -23,7 +24,7 @@ def verbose_change_param(tokenizer, path, after):
     return tokenizer
 
 
-def load_model(model_repo =  "microsoft/phi-2", adaptor_path=None, device="auto", bnb=True, dtype=torch.bfloat16) -> Tuple[AutoModelForCausalLM, PreTrainedTokenizerBase,]:
+def load_model(model_repo =  "microsoft/phi-2", adaptor_path=None, device="auto", bnb=True, dtype=torch.bfloat16, model_class=AutoModelForCausalLM) -> Tuple[AutoModelForCausalLM, PreTrainedTokenizerBase,]:
     """
     A uncensored and large coding ones might be best for lying.
     
@@ -52,7 +53,7 @@ def load_model(model_repo =  "microsoft/phi-2", adaptor_path=None, device="auto"
     config.use_cache = False 
     # config.use_cache = False
 
-    tokenizer = AutoTokenizer.from_pretrained(model_repo, use_fast=True, legacy=False)
+    tokenizer = AutoTokenizer.from_pretrained(model_repo, use_fast=True, legacy=False, trust_remote_code=True)
     if tokenizer.pad_token_id is None:
         tokenizer.pad_token_id = tokenizer.eos_token_id
     tokenizer.padding_side = 'left'
@@ -65,7 +66,7 @@ def load_model(model_repo =  "microsoft/phi-2", adaptor_path=None, device="auto"
         tokenizer.mask_token_id = tokenizer.eos_token_id
 
 
-    model = AutoModelForCausalLM.from_pretrained(model_repo, config=config, 
+    model = model_class.from_pretrained(model_repo, config=config, 
                                                     **model_options)
     
     # mem leak prevent?

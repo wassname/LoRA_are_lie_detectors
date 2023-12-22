@@ -65,7 +65,11 @@ def ds2df(ds, cols=None):
 
 def qc_dsdf(df):
 
+    res = {}
+
     print(f"\tbalance=\t{df['label_true'].mean():2.2%} [N={len(df)}]")
+    res['balance'] = df['label_true'].mean()
+    res['N'] = len(df)
 
     d = df.query('instructed_to_lie==False')
     if len(d):
@@ -74,6 +78,7 @@ def qc_dsdf(df):
         print(f"\tacc    =\t{acc:2.2%} [N={len(d)}]      - when the model is not lying... we get this task acc")
         if acc<=0.3:
             print(f"WARNING: model cannot solve task acc={acc}")
+        res['acc'] = acc
 
     # check LLM lie freq
     d = df.query('instructed_to_lie==True')
@@ -83,6 +88,7 @@ def qc_dsdf(df):
         print(f"\tlie_acc=\t{acc:2.2%} [N={len(d)}]      - when the model tries to lie... we get this acc")
         if acc<=0.01:
             print(f"WARNING: no known lies {acc}")
+        res['lie_acc'] = acc
 
     # check LLM lie freq
     df_known = filter_df_to_known(df, verbose=False)
@@ -94,21 +100,27 @@ def qc_dsdf(df):
         if acc<=0.01:
             print(f"WARNING: no known lies {acc}")
         # assert acc>0.01, f"no known lies={acc}"
+        res['known_lie_acc'] = acc
 
     # check choice coverage
     mean_prob = df['choice_probs'].mean()
     print(f"\tchoice_cov=\t{mean_prob:2.2%}             - Our choices accounted for a mean probability of this")
     assert mean_prob>0.1, "neither of the available choice very likely {mean_prob:2.2%} :(, try debuging your templates. Check: using the correct prompt, the whitespace is correct, the correct eos_tokens (if any)"
+    res['tchoice_cov'] = mean_prob
+    return res
 
 def qc_ds(ds):
     df = ds2df(ds)
     df = df.rename(columns=lambda x: x.replace('_base', '')).copy()
     # check llm accuracy
     print('with base model')
-    qc_dsdf(df)
-    print('with adapter')
-    df = ds2df(ds)
-    df = df.rename(columns=lambda x: x.replace('_adapt', '')).copy()
-    qc_dsdf(df)
+    res_b = qc_dsdf(df)
+    if 'label_true_adapt' in ds.column_names:
+        print('with adapter')
+        df = ds2df(ds)
+        df = df.rename(columns=lambda x: x.replace('_adapt', '')).copy()
+        res_b = qc_dsdf(df)
+        return res_b, res_b
+    return res_b
 
 
