@@ -54,8 +54,8 @@ def ds2df(ds, cols=None):
     df = ds.select_columns(cols)
     df = pd.DataFrame([rows_item(r) for r in df])
 
-    if 'choice_probs_adapt' in df.columns:
-        df['choice_probs'] = np.sum(df['choice_probs_adapt'], 1)
+    if 'choice_probs_adapt' in ds.column_names:
+        df['choice_probs_adapt'] = np.sum(ds['choice_probs_adapt'], 1)
         df['ans_adapt'] = df['binary_ans_adapt'] >0.5
     df['choice_probs_base'] = np.sum(ds['choice_probs_base'], 1)
     df['ans_base'] = df['binary_ans_base'] >0.5
