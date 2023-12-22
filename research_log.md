@@ -125,3 +125,13 @@ lightning options:
 
 https://github.com/huggingface/transformers/blob/cf32c941350cb296e4c2c9e26a9274291d515e90/src/transformers/integrations/peft.py#L268
 https://github.dev/huggingface/peft
+
+
+Tried phi-1.5 and it got 55% acc, low.
+Phi-2 52%, wtf
+with 2 shot it was 68%... OK I see the problem
+
+Now try phi-2. Maybe I need instruction tuned. Or more shots
+Or filter out unkown ones?
+Or try to not make a flip model, but a lying model.
+Or more epochs?

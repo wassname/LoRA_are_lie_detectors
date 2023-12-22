@@ -17,7 +17,7 @@ def generate_batches(loader: DataLoader, model: AutoModelForCausalLM) -> dict:
     for batch in tqdm(loader, 'collecting hidden states'):
         b_in = dict(
             input_ids=batch["input_ids"].clone(),
-            attention_mask=batch["attention_mask"].clone().half(),
+            attention_mask=batch["attention_mask"].clone(),
         )
         with model.disable_adapter():
             out = model(**b_in, use_cache=False, output_hidden_states=True, return_dict=True)
@@ -38,17 +38,13 @@ def generate_batches(loader: DataLoader, model: AutoModelForCausalLM) -> dict:
 from datasets.arrow_writer import ArrowWriter 
 from datasets.fingerprint import Hasher
 
-def ds_hash(generate_batches, loader, model):
-    suffix = Hasher.hash(dict(
-        generate_batches=generate_batches,
-        model=model,
-        loader=loader,
-    ))
+def ds_hash(**kwargs):
+    suffix = Hasher.hash(kwargs)
     return suffix
 
 
 def manual_collect2(loader: DataLoader, model: AutoModelForCausalLM, dataset_name=''):
-    hash = ds_hash(generate_batches, loader, model)
+    hash = ds_hash(generate_batches=generate_batches, loader=loader, model=model)
     f = root_folder / ".ds" / f"ds_{dataset_name}_{hash}"
     f.parent.mkdir(exist_ok=True, parents=True)
     f = str(f)
@@ -65,26 +61,3 @@ def manual_collect2(loader: DataLoader, model: AutoModelForCausalLM, dataset_nam
     
     ds = Dataset.from_file(f).with_format("torch")
     return ds, f
-
-
-# def manual_collect(loader: DataLoader, model: AutoModelForCausalLM, dataset_name='', split_type="train", info_kwargs={}):
-#     """the hidden states are huge so we have to cache to disk. we can do this using datasets.Dataset.from_generator"""
-#     # root_folder = Path("~/.cache/huggingface/datasets")
-#     f = str(root_folder / ".ds" / f"{dataset_name}")
-#     # generator = generate_batches(loader, model)
-#     gen_kwargs = dict(loader=loader, model=model)
-#     ds_out = Dataset.from_generator(
-#         generator=generate_batches,
-#         info=datasets.DatasetInfo(
-#             description=json.dumps(info_kwargs, indent=2),
-#             config_name=f,
-#         ),
-#         gen_kwargs=gen_kwargs,
-#         # features=dataset_features,
-#         num_proc=1,
-#         # split=split_type,
-#     )
-#     logger.info(f"Created dataset {dataset_name} with {len(loader.dataset)} examples at `{f}`")
-#     ds_out.to_disk(f)
-#     # ds_out = Dataset.from_dict({k: torch.concat([rr[k] for rr in data]) for k in data[0].keys()}).with_format("torch")
-#     return ds_out, f

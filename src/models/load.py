@@ -58,6 +58,7 @@ def load_model(model_repo =  "microsoft/phi-2", adaptor_path=None, device="auto"
     tokenizer.truncation_side = 'left'
     tokenizer.cls_token = tokenizer.eos_token
     tokenizer.mask_token = tokenizer.eos_token
+    tokenizer.sep_token = tokenizer.eos_token
 
 
     model = AutoModelForCausalLM.from_pretrained(model_repo, config=config, 

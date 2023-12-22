@@ -1,11 +1,11 @@
-from IPython.display import display, HTML
+from IPython.display import display, HTML, Markdown
 import torch
 # generate
 # https://huggingface.co/docs/transformers/v4.34.1/en/main_classes/text_generation#transformers.GenerationConfig
 
 
 @torch.no_grad()
-def gen(model, inputs, tokenizer):
+def gen(model, inputs, tokenizer, clean=True):
     s = model.generate(
         input_ids=inputs["input_ids"][None, :].to(model.device),
         attention_mask=inputs["attention_mask"][None, :].to(model.device),
@@ -16,10 +16,14 @@ def gen(model, inputs, tokenizer):
         early_stopping=False,
     )
     input_l = inputs["input_ids"].shape[0]
+    tokenizer_kwargs=dict(clean_up_tokenization_spaces=clean, skip_special_tokens=clean)
     old = tokenizer.decode(
-        s[0, :input_l], clean_up_tokenization_spaces=False, skip_special_tokens=False
+        s[0, :input_l], **tokenizer_kwargs
     )
     new = tokenizer.decode(
-        s[0, input_l:], clean_up_tokenization_spaces=False, skip_special_tokens=False
+        s[0, input_l:], **tokenizer_kwargs
     )
-    display(HTML(f"<pre>{old}</pre><b><pre>{new}</pre></b>"))
+    s_old = ""+old.replace('\n', '<br>')
+    s_new =  '<b>' + new.replace('\n', '<br>')+ '<br><br><b/>'
+    display(HTML(f"{s_old}{s_new}"))
+    # print([old, new])

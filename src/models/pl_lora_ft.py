@@ -45,6 +45,8 @@ def postprocess_result(i, o):
         instructed_to_lie=i['instructed_to_lie'],
         sys_instr_name=i['sys_instr_name'],
         example_i=i['example_i'],
+        ds_string=i['ds_string'],
+        template_name=i['template_name'],
     )
 
     # why oh why do I get mem leaks like this

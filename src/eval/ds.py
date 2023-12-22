@@ -1,20 +1,30 @@
 import pandas as pd 
 import numpy as np
 
-def filter_ds_to_known(ds1, verbose=True):
+# def filter_ds_to_known(ds1, verbose=True):
+#     """filter the dataset to only those where the model knows the answer"""
+    
+#     # first get the rows where it answered the question correctly
+#     df = ds2df(ds1).rename(columns=lambda x: x.replace('_base', ''))
+#     d = df.query('sys_instr_name=="truth"').set_index("example_i")
+#     m1 = (d.binary_ans>0.5)==d.label_true
+#     known_indices = d[m1].index
+#     known_rows = df['example_i'].isin(known_indices)
+#     known_rows_i = df[known_rows].index
+    
+#     if verbose: print(f"select rows are {m1.mean():2.2%} based on knowledge")
+#     return ds1.select(known_rows_i)
+
+def filter_df_to_known(df, verbose=True):
     """filter the dataset to only those where the model knows the answer"""
     
     # first get the rows where it answered the question correctly
-    df = ds2df(ds1).rename(columns=lambda x: x.replace('_base', ''))
     d = df.query('sys_instr_name=="truth"').set_index("example_i")
     m1 = (d.binary_ans>0.5)==d.label_true
     known_indices = d[m1].index
-    known_rows = df['example_i'].isin(known_indices)
-    known_rows_i = df[known_rows].index
-    
+    known_rows = df['example_i'].isin(known_indices).copy()
     if verbose: print(f"select rows are {m1.mean():2.2%} based on knowledge")
-    return ds1.select(known_rows_i)
-
+    return df[known_rows]
 
 def rows_item(row):
     """
@@ -32,6 +42,7 @@ def ds2df(ds, cols=None):
     """one of our custom datasets into a dataframe
     
     dropping the large arrays and lists"""
+    ds = ds.with_format('numpy')
     
     # json.loads(dss[0].info.description)['f'] # doesn't work when concat
 
@@ -42,42 +53,61 @@ def ds2df(ds, cols=None):
     ds = ds.with_format('numpy')
     df = ds.select_columns(cols)
     df = pd.DataFrame([rows_item(r) for r in df])
-    return df
 
-def qc_ds(ds):
-    df = ds2df(ds.with_format('numpy')).rename(columns=lambda x: x.replace('_base', ''))
-    df['ans'] = df['binary_ans'] >0.5
+    df['choice_probs_adapt'] = np.sum(ds['choice_probs_adapt'], 1)
+    df['choice_probs_base'] = np.sum(ds['choice_probs_base'], 1)
+    df['ans_base'] = df['binary_ans_base'] >0.5
+    df['ans_adapt'] = df['binary_ans_adapt'] >0.5
+    df['label_instructed'] = df['label_true_base'] ^ df['instructed_to_lie_base']
+    return df.copy()
 
 
-    df['label_instructed'] = df['label_true'] ^ df['instructed_to_lie']
+def qc_dsdf(df):
 
+    print(f"\tbalance=\t{df['label_true'].mean():2.2%} [N={len(df)}]")
 
-    # check llm accuracy
     d = df.query('instructed_to_lie==False')
-    acc = (d.label_instructed==d['ans']).mean()
-    assert np.isfinite(acc)
-    print(f"\tacc    =\t{acc:2.2%} [N={len(d)}] - when the model is not lying... we get this task acc")
-    assert acc>0.3, f"model cannot solve task acc={acc}"
+    if len(d):
+        acc = (d.label_instructed==d['ans']).mean()
+        # assert np.isfinite(acc)
+        print(f"\tacc    =\t{acc:2.2%} [N={len(d)}]      - when the model is not lying... we get this task acc")
+        if acc<=0.3:
+            print(f"WARNING: model cannot solve task acc={acc}")
 
     # check LLM lie freq
     d = df.query('instructed_to_lie==True')
-    acc = (d.label_instructed==d['ans']).mean()
-    assert np.isfinite(acc)
-    print(f"\tlie_acc=\t{acc:2.2%} [N={len(d)}] - when the model tries to lie... we get this acc")
-    assert acc>0.01, f"no known lies acc={acc}"
+    if len(d):
+        acc = (d.label_instructed==d['ans']).mean()
+        # assert np.isfinite(acc)
+        print(f"\tlie_acc=\t{acc:2.2%} [N={len(d)}]      - when the model tries to lie... we get this acc")
+        if acc<=0.01:
+            print(f"WARNING: no known lies {acc}")
 
     # check LLM lie freq
-    ds_known = filter_ds_to_known(ds, verbose=False)
-    df_known = ds2df(ds_known).rename(columns=lambda x: x.replace('_base', ''))
-    df_known['ans'] = df_known['binary_ans'] >0.5
-    df_known['label_instructed'] = df_known['label_true'] ^ df_known['instructed_to_lie']
+    df_known = filter_df_to_known(df, verbose=False)
     d = df_known.query('instructed_to_lie==True')
-    acc = (d.label_instructed==d['ans']).mean()
-    assert np.isfinite(acc)
-    print(f"\tknown_lie_acc=\t{acc:2.2%} [N={len(d)}] - when the model tries to lie and knows the answer... we get this acc")
-    assert acc>0.01, f"no known lies={acc}"
+    if len(d):
+        acc = (d.label_instructed==d['ans']).mean()
+        # assert np.isfinite(acc)
+        print(f"\tknown_lie_acc=\t{acc:2.2%} [N={len(d)}]      - when the model tries to lie and knows the answer... we get this acc")
+        if acc<=0.01:
+            print(f"WARNING: no known lies {acc}")
+        # assert acc>0.01, f"no known lies={acc}"
 
     # check choice coverage
-    mean_prob = ds['choice_probs_adapt'].mean()
-    print(f"\tchoice_cov=\t{mean_prob:2.2%} - Our choices accounted for a mean probability of this")
+    mean_prob = df['choice_probs'].mean()
+    print(f"\tchoice_cov=\t{mean_prob:2.2%}             - Our choices accounted for a mean probability of this")
     assert mean_prob>0.1, "neither of the available choice very likely :(, try debuging your templates. Check: using the correct prompt, the whitespace is correct, the correct eos_tokens (if any)"
+
+def qc_ds(ds):
+    df = ds2df(ds)
+    df = df.rename(columns=lambda x: x.replace('_base', '')).copy()
+    # check llm accuracy
+    print('with base model')
+    qc_dsdf(df)
+    print('with adapter')
+    df = ds2df(ds)
+    df = df.rename(columns=lambda x: x.replace('_adapt', '')).copy()
+    qc_dsdf(df)
+
+

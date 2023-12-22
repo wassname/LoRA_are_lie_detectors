@@ -11,7 +11,7 @@ TEMPLATE_PATH = root_folder / "src/prompts/templates/"
 class ExtractConfig(Serializable):
     """Config for extracting hidden states from a language model."""
 
-    datasets: tuple[str, ...] = ("amazon_polarity",  "super_glue:boolq", "imdb" )
+    datasets: tuple[str, ...] = ("amazon_polarity",  "super_glue:boolq" )
     """Names of HF datasets to use, e.g. `"super_glue:boolq"` or `"imdb"` `"glue:qnli"""
 
     datasets_oos: tuple[str, ...] = ("glue:qnli", )
@@ -25,10 +25,10 @@ class ExtractConfig(Serializable):
     prompt_format: str | None = 'phi'
     """if the tokenizer does not have a chat template you can set a custom one. see src/prompts/templates/prompt_formats/readme.md."""
     
-    num_shots: int = 1
+    num_shots: int = 2
     """Number of examples for few-shot prompts. If zero, prompts are zero-shot."""
 
-    max_length: int | None = 777
+    max_length: int | None = 776
     """Maximum length of the input sequence passed to the tokenize encoder function"""
     
     # intervention_fit_examples: int = 200
