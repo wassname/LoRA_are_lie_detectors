@@ -182,3 +182,24 @@ with base model
 	lie_acc=	39.16% [N=143]      - when the model tries to lie... we get this acc
 	known_lie_acc=	36.07% [N=61]      - when the model tries to lie and knows the answer... we get this acc
 	choice_cov=	75.41%             - Our choices accounted for a mean probability of this
+
+# 2023-12-22 17:04:52
+
+Experiments
+- I tried unsensored/chat/instruction tuned models... not much difference
+- I tried training the adapter to
+  - always say the opposite (meh)
+  - always lie (helped a bit)
+  - always lie when told to/demonstrated to (pending)
+  
+
+bugs :bug: ... wait are my labels right
+
+and am I using ans right... lets check
+- well it comes from binary_ans_adapt (score)
+- which is from postprocess result. 
+- binary_ans = choice_probs[:, 1] / (choice_probs.sum(1) + 1e-12)
+- So! it's just a boolean prediction, not correctness
+
+
+So to get ranking I need to flip it...

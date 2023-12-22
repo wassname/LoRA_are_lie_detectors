@@ -27,11 +27,20 @@ def postprocess_result(i, o, get_residual=True):
     probs = torch.softmax(end_logits, -1)
     choice_ids = i['choice_ids'].detach().cpu().long()
 
+    label_instructed = i['label_true'] ^ i['instructed_to_lie']
+
 
     choice_probs = select_choices(probs, choice_ids).sum(2)
 
     # shape[choices, intervention_version]
     binary_ans = choice_probs[:, 1] / (choice_probs.sum(1) + 1e-12)
+
+    # if the true label is 0, we will flip our binary prediction around. so 25% becomes 75%. It's the rating of how correct our answer was from 0 to 1
+    def switch(p, s):
+        s = s.float()
+        return (1 - s) * (1-p) + s * p
+    correct_truth_telling = switch(binary_ans, i['label_true'])
+    correct_instruction_following = switch(binary_ans, label_instructed)
 
     out = dict(
         end_logits=end_logits,
@@ -40,11 +49,14 @@ def postprocess_result(i, o, get_residual=True):
         choice_probs=choice_probs,
         binary_ans=binary_ans,
         label_true=i['label_true'],
+        label_instructed=label_instructed,
         instructed_to_lie=i['instructed_to_lie'],
         sys_instr_name=i['sys_instr_name'],
         example_i=i['example_i'],
         ds_string=i['ds_string'],
         template_name=i['template_name'],
+        correct_truth_telling=correct_truth_telling,
+        correct_instruction_following=correct_instruction_following,
     )
     if get_residual:
         # hidden states come at as lists of layers, lets stack them
