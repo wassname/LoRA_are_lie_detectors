@@ -218,3 +218,8 @@ maybe no scaling?
 # 2023-12-23 10:05:31
 
 Hmm if I filter it to known I do get some 90%'s, promising!
+
+# 2023-12-23 12:49:27 peft
+
+
+models https://github.dev/huggingface/peft/blob/993836ff90791289b94d27caa46385eec958e147/src/peft/mapping.py#L82

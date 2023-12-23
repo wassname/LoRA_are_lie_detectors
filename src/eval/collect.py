@@ -6,7 +6,7 @@ from tqdm.auto import tqdm
 from torch.utils.data import random_split, DataLoader, TensorDataset
 import json
 from loguru import logger
-from src.helpers.torch import clear_mem, detachcpu, recursive_copy
+from src.helpers.torch_helpers import clear_mem, detachcpu, recursive_copy
 from src.models.pl_lora_ft import postprocess_result
 from src.config import root_folder
 

@@ -6,7 +6,10 @@ from pytorch_optimizer import Ranger21
 from src.helpers.scores import select_choices
 from einops import rearrange
 from transformers.modeling_outputs import ModelOutput
-from src.helpers.torch import clear_mem, detachcpu, recursive_copy
+from jaxtyping import Float, Int
+from torch import Tensor
+
+from src.helpers.torch_helpers import clear_mem, detachcpu, recursive_copy
 
 def hacky_sanitize_outputs(o):
     """I can't find the mem leak, so lets just detach, cpu, clone, freemem."""
@@ -15,6 +18,12 @@ def hacky_sanitize_outputs(o):
     clear_mem()
     return o
 
+
+
+def switch(p: Float[Tensor, ""], s: Float[Tensor, ""]):
+    """if the true label is 0, we will flip our binary prediction around. so 25% becomes 75%. It's the rating of how correct our answer was from 0 to 1"""
+    s = s.float()
+    return (1 - s) * (1-p) + s * p
 
 
 def postprocess_result(i, o, get_residual=True):
@@ -35,10 +44,7 @@ def postprocess_result(i, o, get_residual=True):
     # shape[choices, intervention_version]
     binary_ans = choice_probs[:, 1] / (choice_probs.sum(1) + 1e-12)
 
-    # if the true label is 0, we will flip our binary prediction around. so 25% becomes 75%. It's the rating of how correct our answer was from 0 to 1
-    def switch(p, s):
-        s = s.float()
-        return (1 - s) * (1-p) + s * p
+
     correct_truth_telling = switch(binary_ans, i['label_true'])
     correct_instruction_following = switch(binary_ans, label_instructed)
 
@@ -168,7 +174,9 @@ class AtapterFinetuner(pl.LightningModule):
         assert torch.isfinite(loss)
 
         batch_size = batch["input_ids"].shape[0]
-        self.log(f"{stage}/loss",loss, on_epoch=True, on_step=True, batch_size=batch_size, prog_bar=True)
+        self.log(f"{stage}/loss",loss, on_epoch=True, on_step=True, batch_size=batch_size, 
+        prog_bar=True)
+        self.log(f"{stage}/n", batch_size, on_epoch=True, on_step=False, reduce_fx=torch.sum)
         return loss
 
     def training_step(self, batch, batch_idx=0, dataloader_idx=0):

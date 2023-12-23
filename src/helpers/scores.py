@@ -1,8 +1,8 @@
 
 from typing import Optional, List, Tuple, Dict
 import numpy as np
-import torch
-import torch.nn.functional as F
+# import torch
+# import torch.nn.functional as F
 import functools
 import itertools
 from transformers import (
@@ -13,15 +13,20 @@ from jaxtyping import Float, Int
 from torch import Tensor
 from einops import rearrange
 
+from src.helpers.select import select, select2
 
-default_class2choices = [['No', 'Negative', 'negative', 'no', 'false', 'wrong', 'False', '0'], ['Yes', 'Positive', 'positive', 'yes', 'true', 'correct', 'right', 'True', '1']]
-
+# default_class2choices = [['No', 'Negative', 'negative', 'no', 'false', 'wrong', 'False', '0'], ['Yes', 'Positive', 'positive', 'yes', 'true', 'correct', 'right', 'True', '1']]
 
 def select_choices(end_logits: Float[Tensor, "batch tokens"], choices: Int[Tensor, "batch choices alternates"],) -> Float[Tensor, "batch choices * alternates"]:
-    batch_size = end_logits.shape[0]
+    # batch_size = end_logits.shape[0]
     choices_flat = rearrange(choices, 'b c n -> b (c n)')
-    batch_range = torch.arange(batch_size).unsqueeze(1).to(choices_flat.device)
-    selected_logits = end_logits[batch_range, choices_flat]
+
+    # TODO unit test and split out next two lines
+    # batch_range = torch.arange(batch_size).unsqueeze(0).to(choices_flat.device)
+    # selected_logits = end_logits[batch_range, choices_flat]
+
+    selected_logits = select2(end_logits, choices_flat)
+
     selected_logits = rearrange(selected_logits, 'b (c n) -> b c n', c=choices.shape[1])
     return selected_logits
 

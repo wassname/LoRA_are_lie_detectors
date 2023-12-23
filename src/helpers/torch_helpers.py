@@ -87,3 +87,14 @@ def recursive_copy(x, clone=None, detach=None, retain_grad=None):
         return type(x)([recursive_copy(v) for v in x])
     else:
         assert False, f"Unknown type {type(x)} cannot be broken into tensors."
+
+def batch_to_device(b, device=None):
+    """Move a batch to the device"""
+    if isinstance(b, torch.Tensor):
+        return b.to(device)
+    elif isinstance(b, dict):
+        return {k:batch_to_device(v, device=device) for k,v in b.items()}
+    elif isinstance(b, (list, tuple)):
+        return type(b)([batch_to_device(v, device=device) for v in b])
+    else:
+        return b
