@@ -32,8 +32,8 @@ def check_intervention_predictive(hs, y, verbose=False):
     clf = LogisticRegression(random_state=42, max_iter=1000, class_weight='balanced',).fit(X_train, y_train)
     y_pred = clf.predict(X_train)
     y_val_pred = clf.predict(X_val)
-    y_val_prob = clf.predict_proba(X_val)
-    score = roc_auc_score(y_val, y_val_pred)
+    y_val_prob = clf.predict_proba(X_val)[: ,1]
+    score = roc_auc_score(y_val, y_val_prob)
 
     if verbose:
         target_names = [0, 1]

@@ -131,10 +131,10 @@ Tried phi-1.5 and it got 55% acc, low.
 Phi-2 52%, wtf
 with 2 shot it was 68%... OK I see the problem
 
-- [ ] Now try phi-2. Maybe I need instruction tuned. Or more shots
-- [ ] Or filter out unkown ones?
-- [ ] Or try to not make a flip model, but a lying model.
-- [ ] Or more epochs?
+- [x] Now try phi-2. Maybe I need instruction tuned. Or more shots
+- [x] Or filter out unkown ones?
+- [x] Or try to not make a flip model, but a lying model.
+- [x] Or more epochs?
 
 
 # model acc
@@ -209,17 +209,50 @@ So to get ranking I need to flip it...
 OK fixed the label. Still poor.
 maybe training wkv? no
 
-Maybe I need to fix the LR? Maybe use neels 1 layer linear??
-Maybe I need soft labels?
-Maybe I need to try it, in sample .e.g. val set. then I might find I  just need more daya to gen
-Maybe keep it just to rows it knows
-maybe no scaling?
+- [ ] Maybe I need to fix the LR? Maybe use neels 1 layer linear??
+- [ ] Maybe I need soft labels?
+- [x] Maybe I need to try it, in sample .e.g. val set. then I might find I  just need more daya to gen
+- [x] Maybe keep it just to rows it knows. helpts a lot
+- [x] maybe no scaling? sometimes helps, sometimes doesn't
 
 # 2023-12-23 10:05:31
 
 Hmm if I filter it to known I do get some 90%'s, promising!
 
+Wait it was a one off, curious
+
+Need to rerun the other 2 experiments
+
 # 2023-12-23 12:49:27 peft
 
 
 models https://github.dev/huggingface/peft/blob/993836ff90791289b94d27caa46385eec958e147/src/peft/mapping.py#L82
+
+
+# 2023-12-23 15:35:05
+
+- [x] Now try phi-2. Maybe I need instruction tuned. Or more shots
+- [x] Or filter out unkown ones?
+- [x] Or try to not make a flip model, but a lying model.
+- [x] Or more epochs?
+
+
+- [x] Maybe I need to try it, in sample .e.g. val set. then I might find I  just need more daya to gen
+- [x] Maybe keep it just to rows it knows. helpts a lot
+- [x] maybe no scaling? sometimes helps, sometimes doesn't
+- [ ] Maybe I need to fix the LR? Maybe use neels 1 layer linear??
+- [ ] Maybe I need soft labels?
+- [ ] larger batch? 
+
+
+pytorch probe
+probe with uncertainty taken from that paper
+
+what about if I take away the instructions. train a adapter that lies when demonstrated. ?
+
+
+new datasets
+
+sciq?
+
+or uncertainty like https://github.com/google-research/gpax

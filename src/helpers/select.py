@@ -37,7 +37,7 @@ def select2(x: Int[Tensor, "batch d"], selection: Int[Tensor, "batch a"],):
 
 def select_loop2(x: Int[Tensor, "batch d"], selection: Int[Tensor, "batch a"],):
     y = [select_loop(x, selection[:, i]) for i in range(selection.shape[1])]
-    return torch.stack(y).squeeze(2).T
+    return torch.stack(y).T
 
 
 if __name__ == '__main__':
@@ -51,6 +51,7 @@ if __name__ == '__main__':
     print(choice_ids1, lie_label)
     A = select(choice_ids1, lie_label)
     B = select_loop(choice_ids1, lie_label)
+    print('A, B', A, B)
     np.testing.assert_array_equal(A, B)
 
 
@@ -62,4 +63,5 @@ if __name__ == '__main__':
     print(choice_ids1, lie_label)
     B = select_loop2(choice_ids1, lie_label)
     A = select2(choice_ids1, lie_label)
+    print('A, B', A, B)
     np.testing.assert_array_equal(A, B)

@@ -176,7 +176,7 @@ class AtapterFinetuner(pl.LightningModule):
         batch_size = batch["input_ids"].shape[0]
         self.log(f"{stage}/loss",loss, on_epoch=True, on_step=True, batch_size=batch_size, 
         prog_bar=True)
-        self.log(f"{stage}/n", batch_size, on_epoch=True, on_step=False, reduce_fx=torch.sum)
+        self.log(f"{stage}/n", batch_size* 1.0, on_epoch=True, on_step=False, reduce_fx=torch.sum)
         return loss
 
     def training_step(self, batch, batch_idx=0, dataloader_idx=0):
