@@ -168,7 +168,7 @@ class AtapterFinetuner(pl.LightningModule):
         assert torch.isfinite(loss)
 
         batch_size = batch["input_ids"].shape[0]
-        self.log(f"{stage}/loss",loss, on_epoch=True, on_step=True, batch_size=batch_size)
+        self.log(f"{stage}/loss",loss, on_epoch=True, on_step=True, batch_size=batch_size, prog_bar=True)
         return loss
 
     def training_step(self, batch, batch_idx=0, dataloader_idx=0):

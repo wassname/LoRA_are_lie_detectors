@@ -1,19 +1,19 @@
 import pandas as pd 
 import numpy as np
 
-# def filter_ds_to_known(ds1, verbose=True):
-#     """filter the dataset to only those where the model knows the answer"""
+def filter_ds_to_known(ds1, verbose=True):
+    """filter the dataset to only those where the model knows the answer"""
     
-#     # first get the rows where it answered the question correctly
-#     df = ds2df(ds1).rename(columns=lambda x: x.replace('_base', ''))
-#     d = df.query('sys_instr_name=="truth"').set_index("example_i")
-#     m1 = (d.binary_ans>0.5)==d.label_true
-#     known_indices = d[m1].index
-#     known_rows = df['example_i'].isin(known_indices)
-#     known_rows_i = df[known_rows].index
+    # first get the rows where it answered the question correctly
+    df = ds2df(ds1).rename(columns=lambda x: x.replace('_base', ''))
+    d = df.query('sys_instr_name=="truth"').set_index("example_i")
+    m1 = (d.binary_ans>0.5)==d.label_true
+    known_indices = d[m1].index
+    known_rows = df['example_i'].isin(known_indices)
+    known_rows_i = df[known_rows].index
     
-#     if verbose: print(f"select rows are {m1.mean():2.2%} based on knowledge")
-#     return ds1.select(known_rows_i)
+    if verbose: print(f"select rows are {m1.mean():2.2%} based on knowledge")
+    return ds1.select(known_rows_i)
 
 def filter_df_to_known(df, verbose=True):
     """filter the dataset to only those where the model knows the answer"""
@@ -63,11 +63,11 @@ def ds2df(ds, cols=None):
     return df.copy()
 
 
-def qc_dsdf(df):
+def qc_dsdf(df, verbose=0):
 
     res = {}
 
-    print(f"\tbalance=\t{df['label_true'].mean():2.2%} [N={len(df)}]")
+    if verbose: print(f"\tbalance=\t{df['label_true'].mean():2.2%} [N={len(df)}]")
     res['balance'] = df['label_true'].mean()
     res['N'] = len(df)
 
@@ -75,9 +75,9 @@ def qc_dsdf(df):
     if len(d):
         acc = (d.label_instructed==d['ans']).mean()
         # assert np.isfinite(acc)
-        print(f"\tacc    =\t{acc:2.2%} [N={len(d)}]      - when the model is not lying... we get this task acc")
+        if verbose: print(f"\tacc    =\t{acc:2.2%} [N={len(d)}]      - when the model is not lying... we get this task acc")
         if acc<=0.3:
-            print(f"WARNING: model cannot solve task acc={acc}")
+            if verbose: print(f"WARNING: model cannot solve task acc={acc}")
         res['acc'] = acc
 
     # check LLM lie freq
@@ -85,9 +85,9 @@ def qc_dsdf(df):
     if len(d):
         acc = (d.label_instructed==d['ans']).mean()
         # assert np.isfinite(acc)
-        print(f"\tlie_acc=\t{acc:2.2%} [N={len(d)}]      - when the model tries to lie... we get this acc")
+        if verbose: print(f"\tlie_acc=\t{acc:2.2%} [N={len(d)}]      - when the model tries to lie... we get this acc")
         if acc<=0.01:
-            print(f"WARNING: no known lies {acc}")
+            if verbose: print(f"WARNING: no known lies {acc}")
         res['lie_acc'] = acc
 
     # check LLM lie freq
@@ -96,15 +96,15 @@ def qc_dsdf(df):
     if len(d):
         acc = (d.label_instructed==d['ans']).mean()
         # assert np.isfinite(acc)
-        print(f"\tknown_lie_acc=\t{acc:2.2%} [N={len(d)}]      - when the model tries to lie and knows the answer... we get this acc")
+        if verbose: print(f"\tknown_lie_acc=\t{acc:2.2%} [N={len(d)}]      - when the model tries to lie and knows the answer... we get this acc")
         if acc<=0.01:
-            print(f"WARNING: no known lies {acc}")
+            if verbose: print(f"WARNING: no known lies {acc}")
         # assert acc>0.01, f"no known lies={acc}"
         res['known_lie_acc'] = acc
 
     # check choice coverage
     mean_prob = df['choice_probs'].mean()
-    print(f"\tchoice_cov=\t{mean_prob:2.2%}             - Our choices accounted for a mean probability of this")
+    if verbose: print(f"\tchoice_cov=\t{mean_prob:2.2%}             - Our choices accounted for a mean probability of this")
     assert mean_prob>0.1, "neither of the available choice very likely {mean_prob:2.2%} :(, try debuging your templates. Check: using the correct prompt, the whitespace is correct, the correct eos_tokens (if any)"
     res['tchoice_cov'] = mean_prob
     return res

@@ -5,19 +5,57 @@ from einops import rearrange
 from sklearn.preprocessing import StandardScaler
 import torch
 import pandas as pd
+from src.helpers.pandas_classification_report import classification_report, confusion_matrix
+from sklearn.model_selection import train_test_split
 
 
-def check_intervention_predictive(hs, y):
+def get_classification_report(y_test, y_pred):
+    '''Source: https://stackoverflow.com/questions/39662398/scikit-learn-output-metrics-classification-report-into-csv-tab-delimited-format'''
+    from sklearn import metrics
+    report = metrics.classification_report(y_test, y_pred, output_dict=True)
+    df_classification_report = pd.DataFrame(report).transpose()
+    df_classification_report = df_classification_report.sort_values(by=['f1-score'], ascending=False)
+    return df_classification_report
+
+def check_intervention_predictive(hs, y, verbose=False):
     """
     We want the hidden states resulting from interventions to have predictive power
     Lets compare normal hidden states to intervened hidden states
     """
     X = rearrange(hs, 'b l hs -> b (l hs)')
+    X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.5, random_state=42, stratify=y)
+
+    scaler = StandardScaler(with_mean=True, with_std=True)
+    X_train = scaler.fit_transform(X_train)
+    X_val = scaler.transform(X_val)
+
+    clf = LogisticRegression(random_state=42, max_iter=1000, class_weight='balanced',).fit(X_train, y_train)
+    y_pred = clf.predict(X_train)
+    y_val_pred = clf.predict(X_val)
+    y_val_prob = clf.predict_proba(X_val)
+    score = roc_auc_score(y_val, y_val_pred)
+
+    if verbose:
+        target_names = [0, 1]
+        cm = confusion_matrix(y_val, y_val_pred, target_names=target_names, normalize='true')
+        cr = classification_report(y_val, y_val_pred, target_names=target_names)
+        print(cm)
+        print(cr)
+    
+    return score
+
+def check_intervention_predictive_nn(hs, y):
+    """
+    We want the hidden states resulting from interventions to have predictive power
+    Lets compare normal hidden states to intervened hidden states
+    """
+    # TODO use a linear layer...
+    X = rearrange(hs, 'b l hs -> b (l hs)')
     N = len(X)//2
     X_train, X_val = X[:N], X[N:]
     y_train, y_val = y[:N], y[N:]
 
-    scaler = StandardScaler()
+    scaler = StandardScaler(with_mean=False)
     X_train = scaler.fit_transform(X_train)
     X_val = scaler.transform(X_val)
 
@@ -28,7 +66,7 @@ def check_intervention_predictive(hs, y):
     return score
 
 
-def test_intervention_quality2(ds_out, label_fn, tokenizer, thresh=0.03, take_diff=False):
+def test_intervention_quality2(ds_out, label_fn, tokenizer, thresh=0.03, take_diff=False, verbose=False):
     """
     Check interventions are ordered and different and valid
 
@@ -40,6 +78,7 @@ def test_intervention_quality2(ds_out, label_fn, tokenizer, thresh=0.03, take_di
         - or just "yes", the choices keep coverage, 
         - it's not over confident
     """
+    res = {}
 
     # collect labels    
     label = label_fn(ds_out)
@@ -47,46 +86,40 @@ def test_intervention_quality2(ds_out, label_fn, tokenizer, thresh=0.03, take_di
     # collect hidden states
     hs_normal = ds_out['end_residual_stream_base']
     hs_intervene = ds_out['end_residual_stream_adapt']
-    if take_diff:
-        print("taking diff")
-        hs_normal = hs_normal.diff(1)
-        hs_intervene = hs_intervene.diff(1)
 
-    print("primary metric: predictive power (of logistic regression on top of intervened hidden states)")
+    # print(f"## primary metric: predictive power (of logistic regression on top of intervened hidden states to predict base model Y) [N={len(label)//2}]")
     s1_baseline = check_intervention_predictive(hs_normal, label)
     s1_interven = check_intervention_predictive(hs_intervene, label)
     predictive = s1_interven - s1_baseline > thresh
-    print(f"predictive power? {predictive} [i] = baseline: {s1_baseline:.3f} > {s1_interven:.3f} roc_auc")
+    if verbose: print(f"  - predictive power? {predictive} [i]    = baseline: {s1_baseline:.3f} > {s1_interven:.3f} roc_auc [N={len(label)//2}]")
+    res['predictive'] = dict(roc_auc_baseline=s1_baseline, roc_auc_interven=s1_interven, predictive=predictive)
+
     s1_interven = check_intervention_predictive(hs_intervene-hs_normal, label)
     predictive = s1_interven - s1_baseline > thresh
-    print(f"predictive power? {predictive} [i-b] = baseline: {s1_baseline:.3f} > {s1_interven:.3f} roc_auc")
+    
+    if verbose: print(f"  - predictive power? {predictive} [i-b]  = baseline: {s1_baseline:.3f} > {s1_interven:.3f} roc_auc")
+    res['predictive_diff'] = dict(roc_auc_baseline=s1_baseline, roc_auc_interven=s1_interven, predictive=predictive)
 
-    s1_baseline = check_intervention_predictive(hs_normal.diff(1), label)
-    s1_interven = check_intervention_predictive(hs_intervene.diff(1), label)
-    predictive = s1_interven - s1_baseline > thresh
-    print(f"predictive power? {predictive} [diff]  = baseline: {s1_baseline:.3f} > {s1_interven:.3f} roc_auc")
-    s1_interven = check_intervention_predictive((hs_intervene-hs_normal).diff(1), label)
-    predictive = s1_interven - s1_baseline > thresh
-    print(f"predictive power? {predictive} [diff(i-b)] = baseline: {s1_baseline:.3f} > {s1_interven:.3f} roc_auc")
+    # hs = torch.concat([hs_intervene, hs_normal], 1)
+    # s1_interven = check_intervention_predictive(hs, label)
+    # predictive = s1_interven - s1_baseline > thresh
+    # print(f"- predictive power? {predictive} [i, b] = baseline: {s1_baseline:.3f} > {s1_interven:.3f} roc_auc")
+
+    # s1_baseline = check_intervention_predictive(hs_normal.diff(1), label)
+    # s1_interven = check_intervention_predictive(hs_intervene.diff(1), label)
+    # predictive = s1_interven - s1_baseline > thresh
+    # print(f"predictive power? {predictive} [diff]  = baseline: {s1_baseline:.3f} > {s1_interven:.3f} roc_auc")
+    # s1_interven = check_intervention_predictive((hs_intervene-hs_normal).diff(1), label)
+    # predictive = s1_interven - s1_baseline > thresh
+    # print(f"predictive power? {predictive} [diff(i-b)] = baseline: {s1_baseline:.3f} > {s1_interven:.3f} roc_auc")
 
     # also check coverage
     # also check reasonable probs (e.g choices not too high, others not too low)
     # also check the probs actually makes a differen't to ans
     # We would hope that an unrelated tokens would have it's probability mostly uneffected
 
-    # id_unrelated = tokenizer.encode('\n')[0]
-    # unrelated_probs_a = torch.softmax(ds_out['end_logits_adapt'], 0)[:, id_unrelated].mean(0).item()
-    # unrelated_probs_b = torch.softmax(ds_out['end_logits_base'], 0)[:, id_unrelated].mean(0).item()
-    df_metrics = pd.DataFrame({
-        'coverage': [
-            ds_out['choice_probs_base'].mean(0).sum(0).item(),
-            ds_out['choice_probs_adapt'].mean(0).sum(0).item(),
-        ],
-        'ans': [
-            ds_out['binary_ans_base'].mean(0).item(),
-            ds_out['binary_ans_adapt'].mean(0).item()
-            ],
-        # 'unrelated_probs': [unrelated_probs_a, unrelated_probs_b],
-    }, index=['baseline', 'intervene']).T
-    print(df_metrics)
+
+
+    df_res = pd.DataFrame(res).T
+    return df_res
 

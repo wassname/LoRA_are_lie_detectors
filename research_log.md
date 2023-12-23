@@ -203,3 +203,18 @@ and am I using ans right... lets check
 
 
 So to get ranking I need to flip it...
+
+# 2023-12-22 17:45:54 need to check intervention LR's
+
+OK fixed the label. Still poor.
+maybe training wkv? no
+
+Maybe I need to fix the LR? Maybe use neels 1 layer linear??
+Maybe I need soft labels?
+Maybe I need to try it, in sample .e.g. val set. then I might find I  just need more daya to gen
+Maybe keep it just to rows it knows
+maybe no scaling?
+
+# 2023-12-23 10:05:31
+
+Hmm if I filter it to known I do get some 90%'s, promising!
