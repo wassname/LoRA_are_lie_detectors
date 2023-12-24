@@ -5,6 +5,7 @@ import torch.nn.functional as F
 import torch.nn as nn
 from torchmetrics.functional import accuracy
 from einops import rearrange
+from random import random as rand
 
     
 class PLRankingBase(pl.LightningModule):
@@ -23,6 +24,10 @@ class PLRankingBase(pl.LightningModule):
         
     def _step(self, batch, batch_idx, stage='train'):
         x0, x1, y = batch
+
+        if rand()>0.5:
+            x0, x1 = x1, x0
+            y = -y
         ypred0 = self(x0)
         ypred1 = self(x1)
         
@@ -137,7 +142,7 @@ class LinBnDrop(nn.Module):
     
 
 class PLConvProbeLinear(PLRankingBase):
-    def __init__(self, c_in, total_steps, depth=0, lr=4e-3, weight_decay=1e-9, hs=64, **kwargs):
+    def __init__(self, c_in, total_steps, depth=0, lr=4e-3, weight_decay=1e-9, hs=64, dropout=0, **kwargs):
         super().__init__(total_steps=total_steps, lr=lr, weight_decay=weight_decay)
         self.save_hyperparameters()
         
@@ -145,20 +150,20 @@ class PLConvProbeLinear(PLRankingBase):
         layers = [nn.BatchNorm1d(c_in[1], affine=False)]
         for i in range(depth+1):
             if (i>0) and (i<depth):
-                layers.append(InceptionBlock(hs*4, hs))
+                layers.append(InceptionBlock(hs*4, hs, conv_dropout=dropout))
             elif i==0: # first layer
                 if depth==0: 
                     layers.append(InceptionBlock(c_in[1], 1))
                 else:
-                    layers.append(InceptionBlock(c_in[1], hs))
+                    layers.append(InceptionBlock(c_in[1], hs, conv_dropout=dropout))
             else: # last layer
                 layers.append(nn.Conv1d(hs*4, 1, 1))
         self.conv = nn.Sequential(*layers)
         
         n = c_in[0]
         self.head = nn.Sequential(
-            LinBnDrop(n, n),
-            LinBnDrop(n, n),
+            LinBnDrop(n, n, p=dropout),
+            LinBnDrop(n, n, p=dropout),
             nn.Linear(n, 1),  
             # nn.Tanh(), 
         )

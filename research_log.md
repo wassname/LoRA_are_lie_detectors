@@ -271,3 +271,8 @@ https://arxiv.org/pdf/2305.18213.pdf
 it would be cool to use this https://github.com/pytorch/botorch
 
 #@
+
+
+# 2023-12-24 19:42:37
+
+So in this experiment 
