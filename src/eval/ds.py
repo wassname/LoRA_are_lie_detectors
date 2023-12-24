@@ -106,7 +106,7 @@ def qc_dsdf(df, verbose=0):
     mean_prob = df['choice_probs'].mean()
     if verbose: print(f"\tchoice_cov=\t{mean_prob:2.2%}             - Our choices accounted for a mean probability of this")
     assert mean_prob>0.1, "neither of the available choice very likely {mean_prob:2.2%} :(, try debuging your templates. Check: using the correct prompt, the whitespace is correct, the correct eos_tokens (if any)"
-    res['tchoice_cov'] = mean_prob
+    res['choice_cov'] = mean_prob
     return res
 
 def qc_ds(ds):

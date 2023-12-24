@@ -17,7 +17,8 @@ def get_classification_report(y_test, y_pred):
     df_classification_report = df_classification_report.sort_values(by=['f1-score'], ascending=False)
     return df_classification_report
 
-def check_intervention_predictive(hs, y, verbose=False):
+# TODO move to intervention
+def check_lr_intervention_predictive(hs, y, verbose=False):
     """
     We want the hidden states resulting from interventions to have predictive power
     Lets compare normal hidden states to intervened hidden states
@@ -66,7 +67,15 @@ def check_intervention_predictive_nn(hs, y):
     return score
 
 
-def test_intervention_quality2(ds_out, label_fn, tokenizer, thresh=0.03, take_diff=False, verbose=False):
+def make_dfres_pretty(styler, title):
+    styler.set_caption(title)
+    styler.background_gradient(axis='index', vmin=0, vmax=1, cmap="RdYlGn", 
+                               subset=['roc_auc_baseline', 'roc_auc_interven', 'pass'])
+    styler.background_gradient(axis='index', vmin=-.05, vmax=.05, cmap="RdYlGn", 
+                               subset=['pred_inc'])
+    return styler
+
+def test_intervention_quality2(ds_out, label_fn, thresh=0.03, take_diff=False, verbose=False, title="Intervention predictive power"):
     """
     Check interventions are ordered and different and valid
 
@@ -88,38 +97,20 @@ def test_intervention_quality2(ds_out, label_fn, tokenizer, thresh=0.03, take_di
     hs_intervene = ds_out['end_residual_stream_adapt']
 
     # print(f"## primary metric: predictive power (of logistic regression on top of intervened hidden states to predict base model Y) [N={len(label)//2}]")
-    s1_baseline = check_intervention_predictive(hs_normal, label)
-    s1_interven = check_intervention_predictive(hs_intervene, label)
-    predictive = s1_interven - s1_baseline > thresh
+    s1_baseline = check_lr_intervention_predictive(hs_normal, label)
+    s1_interven = check_lr_intervention_predictive(hs_intervene, label)
+    predictive = s1_interven - s1_baseline# > thresh
     if verbose: print(f"  - predictive power? {predictive} [i]    = baseline: {s1_baseline:.3f} > {s1_interven:.3f} roc_auc [N={len(label)//2}]")
-    res['predictive'] = dict(roc_auc_baseline=s1_baseline, roc_auc_interven=s1_interven, predictive=predictive)
+    res['predictive'] = dict(roc_auc_baseline=s1_baseline, roc_auc_interven=s1_interven, pred_inc=predictive)
 
-    s1_interven = check_intervention_predictive(hs_intervene-hs_normal, label)
-    predictive = s1_interven - s1_baseline > thresh
+    s1_interven = check_lr_intervention_predictive(hs_intervene-hs_normal, label)
+    predictive = s1_interven - s1_baseline# > thresh
     
     if verbose: print(f"  - predictive power? {predictive} [i-b]  = baseline: {s1_baseline:.3f} > {s1_interven:.3f} roc_auc")
-    res['predictive_diff'] = dict(roc_auc_baseline=s1_baseline, roc_auc_interven=s1_interven, predictive=predictive)
-
-    # hs = torch.concat([hs_intervene, hs_normal], 1)
-    # s1_interven = check_intervention_predictive(hs, label)
-    # predictive = s1_interven - s1_baseline > thresh
-    # print(f"- predictive power? {predictive} [i, b] = baseline: {s1_baseline:.3f} > {s1_interven:.3f} roc_auc")
-
-    # s1_baseline = check_intervention_predictive(hs_normal.diff(1), label)
-    # s1_interven = check_intervention_predictive(hs_intervene.diff(1), label)
-    # predictive = s1_interven - s1_baseline > thresh
-    # print(f"predictive power? {predictive} [diff]  = baseline: {s1_baseline:.3f} > {s1_interven:.3f} roc_auc")
-    # s1_interven = check_intervention_predictive((hs_intervene-hs_normal).diff(1), label)
-    # predictive = s1_interven - s1_baseline > thresh
-    # print(f"predictive power? {predictive} [diff(i-b)] = baseline: {s1_baseline:.3f} > {s1_interven:.3f} roc_auc")
-
-    # also check coverage
-    # also check reasonable probs (e.g choices not too high, others not too low)
-    # also check the probs actually makes a differen't to ans
-    # We would hope that an unrelated tokens would have it's probability mostly uneffected
-
-
+    res['predictive_diff'] = dict(roc_auc_baseline=s1_baseline, roc_auc_interven=s1_interven, pred_inc=predictive)
 
     df_res = pd.DataFrame(res).T
-    return df_res
+    df_res['pass'] = df_res['pred_inc'] > thresh
+    df_styled = df_res.style.pipe(make_dfres_pretty, title)
+    return df_styled
 

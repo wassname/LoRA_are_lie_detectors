@@ -241,14 +241,23 @@ models https://github.dev/huggingface/peft/blob/993836ff90791289b94d27caa46385ee
 - [x] Maybe keep it just to rows it knows. helpts a lot
 - [x] maybe no scaling? sometimes helps, sometimes doesn't
 - [ ] Maybe I need to fix the LR? Maybe use neels 1 layer linear??
+  - [ ] https://github.com/lingo-mit/lm-truthfulness/blob/master/lm_truthfulness_gpt-j.ipynb
 - [ ] Maybe I need soft labels?
 - [ ] larger batch? 
+
+- [ ] maybe it's not understandable to a lienar probe. I've made _different_ hidden states, but maybe not understandable to a linear regression. So maybe a non linear probe on top? Can try a VAE another day.
+  - [ ] make some plugin probe. linear, my conv one, bayesian
+  - [ ] https://github.com/pytorch/botorch/issues/725
+    - [ ] https://mapie.readthedocs.io/en/latest/examples_regression/4-tutorials/plot_cqr_tutorial.html
 
 
 pytorch probe
 probe with uncertainty taken from that paper
 
+
+Idea: remove system prompts! it still works. few shot examples do seem better
 what about if I take away the instructions. train a adapter that lies when demonstrated. ?
+- hmm I get 90% auc, but I get that as baseline or probe. 
 
 
 new datasets
@@ -256,3 +265,9 @@ new datasets
 sciq?
 
 or uncertainty like https://github.com/google-research/gpax
+
+https://arxiv.org/pdf/2305.18213.pdf
+
+it would be cool to use this https://github.com/pytorch/botorch
+
+#@
