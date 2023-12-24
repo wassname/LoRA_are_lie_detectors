@@ -103,7 +103,7 @@ def test_intervention_quality2(ds_out, label_fn, thresh=0.03, take_diff=False, v
     if verbose: print(f"  - predictive power? {predictive} [i]    = baseline: {s1_baseline:.3f} > {s1_interven:.3f} roc_auc [N={len(label)//2}]")
     res['predictive'] = dict(roc_auc_baseline=s1_baseline, roc_auc_interven=s1_interven, pred_inc=predictive)
 
-    s1_interven = check_lr_intervention_predictive(hs_intervene-hs_normal, label)
+    s1_interven = check_lr_intervention_predictive(hs_normal-hs_intervene, label)
     predictive = s1_interven - s1_baseline# > thresh
     
     if verbose: print(f"  - predictive power? {predictive} [i-b]  = baseline: {s1_baseline:.3f} > {s1_interven:.3f} roc_auc")

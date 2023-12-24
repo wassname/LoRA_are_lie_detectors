@@ -276,3 +276,14 @@ it would be cool to use this https://github.com/pytorch/botorch
 # 2023-12-24 19:42:37
 
 So in this experiment 
+notebooks/03_mjc_ltold_to_lie_loss.ipynb
+7776d2639eb95dd89fe933983cb7839f368e7b52
+
+I trained a probe that lied, while the base model told the truth. But it didn't extend to the OOD set!
+
+And the intervention hidden states didn't hepl much on the train/val set. The base hidden states seemed to be enougth.
+
+Hmm. there are even cases where the base hidden states help predict if the adapter will lie, and of course it almost always does. Confusing
+
+Oh but the model does have really poor performance on the OOD set. Hmm so maybe it's not a good example?
+Or maybe I have a bug...

@@ -1,6 +1,6 @@
 
-
-clear_dataset_caches:
+# clear dataset caches
+clear:
     rm -rf .ds
     rm -rf ~/.cache/huggingface/datasets/generator
 

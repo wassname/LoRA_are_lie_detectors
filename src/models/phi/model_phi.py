@@ -780,7 +780,7 @@ class ParallelBlock(nn.Module):
 
         hidden_states = attn_outputs + feed_forward_hidden_states + residual
 
-        return hidden_states, attn_outputs
+        return feed_forward_hidden_states, attn_outputs
 
 
 class CausalLMHead(nn.Module):
