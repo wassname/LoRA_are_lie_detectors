@@ -1,6 +1,11 @@
 """
 https://github.com/lingo-mit/lm-truthfulness/blob/master/lm_truthfulness_gpt-j_sparse.ipynb
 """
+import torch
+import torch.nn as nn
+import torch.optim as optim
+
+
 class Probe(nn.Module):
     def __init__(self, model_dim):
         super().__init__()
@@ -22,7 +27,7 @@ def eval_probe(probe, data_processed):
         data_processed["bad_repr"]
     ).mean().item()
 
-def train_probe(train_data_processed, val_data_processed, l1=0):
+def train_probe(train_data_processed, val_data_processed, l1=0, N_DEV = 1000):
     n_train, model_dim = train_data_processed["good_repr"].shape
     probe = Probe(model_dim).float().cuda()
     objective = nn.CrossEntropyLoss()

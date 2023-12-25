@@ -14,9 +14,10 @@ class PLRankingBase(pl.LightningModule):
     
     This uses SmoothL1Loss to tackle a ranking objective and does better in terms of performance and overfitting compared to MarginRanking loss, as well as setting it up to classify the direction, or estimate the distance between the pair direction with MSE.
     """
-    def __init__(self, total_steps: int, lr=4e-3, weight_decay=1e-9):
+    def __init__(self, epoch_steps: int, max_epochs: int, lr=4e-3, weight_decay=1e-9):
         super().__init__()
         self.probe = None # subclasses must add this
+        self.total_steps = epoch_steps * max_epochs
         self.save_hyperparameters()
         
     def forward(self, x):
@@ -39,7 +40,7 @@ class PLRankingBase(pl.LightningModule):
         
         y_cls = ypred1>ypred0 # switch2bool(ypred1-ypred0)
         self.log(f"{stage}/acc", accuracy(y_cls, y>0, "binary"), on_epoch=True, on_step=False)
-        self.log(f"{stage}/loss", loss, on_epoch=True, on_step=False)
+        self.log(f"{stage}/loss", loss, on_epoch=True, on_step=True, prog_bar=True)
         self.log(f"{stage}/n", len(y), on_epoch=True, on_step=False, reduce_fx=torch.sum)
         return loss
     
@@ -61,7 +62,7 @@ class PLRankingBase(pl.LightningModule):
             self.parameters(),
             lr=self.hparams.lr,
             weight_decay=self.hparams.weight_decay,       
-            num_iterations=self.hparams.total_steps,
+            num_iterations=self.hparams.epoch_steps * self.hparams.max_epochs,
         )
         return optimizer
 
