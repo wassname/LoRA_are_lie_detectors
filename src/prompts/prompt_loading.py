@@ -137,6 +137,7 @@ def load_prompts(
         train_name = select_split(ds_dict, "train")
         
         # TODO don't we need to binarize this?
+        # FIXME: this doesn't binarize
         fewshot = FewShotSampler(
             ds_dict[train_name].shuffle(seed=seed),  # TODO: not iterator
             num_shots=num_shots,
@@ -338,6 +339,9 @@ def load_preproc_dataset(ds_name: str, tokenizer: PreTrainedTokenizerBase, N:int
             seed=seed,
             N=N*3,
         ),
+        # prefetch=False,
+        # num_proc=0,
+        keep_in_memory=False,
     )
     
     

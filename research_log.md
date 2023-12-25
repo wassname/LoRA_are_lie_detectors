@@ -272,6 +272,12 @@ it would be cool to use this https://github.com/pytorch/botorch
 
 #@
 
+# binary uncertainty?
+
+https://mapie.readthedocs.io/en/latest/theoretical_description_binary_classification.html
+
+https://github.com/cornellius-gp/gpytorch/blob/master/examples/04_Variational_and_Approximate_GPs/Non_Gaussian_Likelihoods.ipynb
+
 
 # 2023-12-24 19:42:37
 
@@ -330,3 +336,8 @@ Hypothesis: Probes on adapter are better than either probes or adapters.
 
 So yes! Hypothesis confirmed
 mm
+
+
+# 2023-12-25 19:11:42
+
+Note there are probes of CCS here https://github.com/saprmarks/geometry-of-truth/blob/91b223224699754efe83bbd3cae04d434dda0760/probes.py#L75

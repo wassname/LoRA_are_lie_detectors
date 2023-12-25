@@ -11,10 +11,10 @@ TEMPLATE_PATH = root_folder / "src/prompts/templates/"
 class ExtractConfig(Serializable):
     """Config for extracting hidden states from a language model."""
 
-    datasets: tuple[str, ...] = ("amazon_polarity", "glue:qnli" )
-    """Names of HF datasets to use, e.g. `"super_glue:boolq"` or `"imdb"` `"glue:qnli"""
+    datasets: tuple[str, ...] = ("amazon_polarity", "glue:qnli", 'super_glue:rte', 'super_glue:axg', 'sst2', 'hans')
+    """Names of HF datasets to use, e.g. `"super_glue:boolq"` or `"imdb"` `"glue:qnli` super_glue:rte super_glue:axg sst2 hans"""
 
-    datasets_ood: tuple[str, ...] = ( "super_glue:boolq", )
+    datasets_ood: tuple[str, ...] = ( "super_glue:boolq",'super_glue:axg', 'imdb')
     """Names of Out Of Distribution HF datasets to use, e.g. `"super_glue:boolq"` or `"imdb"` `"glue:qnli"""
     
     # model: str = "wassname/phi-2-w_hidden_states"
