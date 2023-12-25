@@ -308,3 +308,25 @@ So experiment results:
 
 But wait I need to train for truth telling...
 
+Experiment notebooks/04_mjc_truth.ipynb at commit ed6343344ea63f7dc5fd35fc5958501d2ef07278
+
+base model task (truth auroc) 0.64 val, 0.69 OOD
+adapter acc 0.71 val (better), 0.65 OOD (worse)
+base model residual LR 0.89 val, 0.917
+adapter residual LR 0.905 (better), 0.974 (better)
+non linear probe 0.96 auroc
+
+So yes! Hypothesis confirmed
+
+
+Hypothesis: Probes on adapter are better than either probes or adapters.
+
+|model| val acc | OOD acc |
+|--|--|--|
+|base model  acc | 0.64  | 0.70 OOD |
+|adapter acc | 0.71  (better) | 0.64 (worse)|
+|base+probe model residual auroc | 0.89 | 0.917|
+|adapter+probe residual auroc | **0.905** | **0.974 (better)**|
+
+So yes! Hypothesis confirmed
+mm
