@@ -11,10 +11,10 @@ TEMPLATE_PATH = root_folder / "src/prompts/templates/"
 class ExtractConfig(Serializable):
     """Config for extracting hidden states from a language model."""
 
-    datasets: tuple[str, ...] = ("amazon_polarity",  "super_glue:boolq" )
+    datasets: tuple[str, ...] = ("amazon_polarity", "glue:qnli" )
     """Names of HF datasets to use, e.g. `"super_glue:boolq"` or `"imdb"` `"glue:qnli"""
 
-    datasets_ood: tuple[str, ...] = ("glue:qnli", )
+    datasets_ood: tuple[str, ...] = ( "super_glue:boolq", )
     """Names of Out Of Distribution HF datasets to use, e.g. `"super_glue:boolq"` or `"imdb"` `"glue:qnli"""
     
     # model: str = "wassname/phi-2-w_hidden_states"
@@ -40,3 +40,9 @@ class ExtractConfig(Serializable):
 
     seed: int = 42
     """Random seed."""
+
+    skip_layers: int = 2
+    """Number of layers to skip from the start of the model."""
+
+    stride_layers: int = 2
+    """Number of layers to skip between each layer."""

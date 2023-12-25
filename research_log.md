@@ -287,3 +287,24 @@ Hmm. there are even cases where the base hidden states help predict if the adapt
 
 Oh but the model does have really poor performance on the OOD set. Hmm so maybe it's not a good example?
 Or maybe I have a bug...
+
+The basics of my approach is that the intervention should be good. but the intervention doesn't seem to add much. Hmm
+
+Hypothesis:
+- the information isn't there because 1) the model is too small or 2) the hidden states are no the right way to look at it or 
+
+what do I mean by adapters acting like probes. Sure we can train them, take the hidden states, and use it with logistic regression to get an answer. But the normal way is to just let the adaptor give the answer. Well do think treating them as a probe is better. But I need to prove it. Perhaps even make a linear adapter. This can be a building block even if it doesn't unlock lie detection right away.
+
+**Hypotheis**: probe acc is greater than adapter acc. And even OOD.
+
+wait shoulnd't auc predictive be the same for baseline and intervention if I am only using the baseline hidden states??
+
+So experiment results:
+- acc of base model 0.824639
+- acc of adapter 0.62 (more lies)
+- just hidden states of base: 0.886339
+- hidden states of both 0.908748 (slightly better but not much)
+
+
+But wait I need to train for truth telling...
+

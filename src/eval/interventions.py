@@ -18,7 +18,7 @@ def get_classification_report(y_test, y_pred):
     return df_classification_report
 
 # TODO move to intervention
-def check_lr_intervention_predictive(hs, y, verbose=False):
+def check_lr_intervention_predictive(hs, y, verbose=False, scale=True):
     """
     We want the hidden states resulting from interventions to have predictive power
     Lets compare normal hidden states to intervened hidden states
@@ -26,9 +26,10 @@ def check_lr_intervention_predictive(hs, y, verbose=False):
     X = rearrange(hs, 'b l hs -> b (l hs)')
     X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.5, random_state=42, stratify=y)
 
-    scaler = StandardScaler(with_mean=True, with_std=True)
-    X_train = scaler.fit_transform(X_train)
-    X_val = scaler.transform(X_val)
+    if scale:
+        scaler = StandardScaler(with_mean=True, with_std=True)
+        X_train = scaler.fit_transform(X_train)
+        X_val = scaler.transform(X_val)
 
     clf = LogisticRegression(random_state=42, max_iter=1000, class_weight='balanced',).fit(X_train, y_train)
     y_pred = clf.predict(X_train)
@@ -36,14 +37,14 @@ def check_lr_intervention_predictive(hs, y, verbose=False):
     y_val_prob = clf.predict_proba(X_val)[: ,1]
     score = roc_auc_score(y_val, y_val_prob)
 
+    target_names = [0, 1]
+    cm = confusion_matrix(y_val, y_val_pred, target_names=target_names, normalize='true')
+    cr = classification_report(y_val, y_val_pred, target_names=target_names)
     if verbose:
-        target_names = [0, 1]
-        cm = confusion_matrix(y_val, y_val_pred, target_names=target_names, normalize='true')
-        cr = classification_report(y_val, y_val_pred, target_names=target_names)
         print(cm)
         print(cr)
     
-    return score
+    return dict(score=score, y_val_pred=y_val_pred, y_val_prob=y_val_prob, y_val=y_val, cm=cm, cr=cr)
 
 def check_intervention_predictive_nn(hs, y):
     """
@@ -70,12 +71,12 @@ def check_intervention_predictive_nn(hs, y):
 def make_dfres_pretty(styler, title):
     styler.set_caption(title)
     styler.background_gradient(axis='index', vmin=0, vmax=1, cmap="RdYlGn", 
-                               subset=['roc_auc_baseline', 'roc_auc_interven', 'pass'])
+                               subset=['roc_auc', 'pass'])
     styler.background_gradient(axis='index', vmin=-.05, vmax=.05, cmap="RdYlGn", 
-                               subset=['pred_inc'])
+                               subset=['diff'])
     return styler
 
-def test_intervention_quality2(ds_out, label_fn, thresh=0.03, take_diff=False, verbose=False, title="Intervention predictive power"):
+def test_intervention_quality2(ds_out, label_fn, thresh=0.03, take_diff=False, verbose=False, title="Intervention predictive power", skip=0, stride=1, model_kwargs={}):
     """
     Check interventions are ordered and different and valid
 
@@ -93,24 +94,25 @@ def test_intervention_quality2(ds_out, label_fn, thresh=0.03, take_diff=False, v
     label = label_fn(ds_out)
 
     # collect hidden states
-    hs_normal = ds_out['end_residual_stream_base']
-    hs_intervene = ds_out['end_residual_stream_adapt']
+    hs_normal = ds_out['end_residual_stream_base'][:, skip::stride]
+    hs_intervene = ds_out['end_residual_stream_adapt'][:, skip::stride]
 
     # print(f"## primary metric: predictive power (of logistic regression on top of intervened hidden states to predict base model Y) [N={len(label)//2}]")
-    s1_baseline = check_lr_intervention_predictive(hs_normal, label)
-    s1_interven = check_lr_intervention_predictive(hs_intervene, label)
-    predictive = s1_interven - s1_baseline# > thresh
-    if verbose: print(f"  - predictive power? {predictive} [i]    = baseline: {s1_baseline:.3f} > {s1_interven:.3f} roc_auc [N={len(label)//2}]")
-    res['predictive'] = dict(roc_auc_baseline=s1_baseline, roc_auc_interven=s1_interven, pred_inc=predictive)
+    s1_baseline = check_lr_intervention_predictive(hs_normal, label, **model_kwargs)
+    s1_interven = check_lr_intervention_predictive(hs_intervene, label, **model_kwargs)
+    predictive = s1_interven['score'] - s1_baseline['score']# > thresh
+    # if verbose: print(f"  - predictive power? {predictive} [i]    = baseline: {s1_baseline:.3f} > {s1_interven:.3f} roc_auc [N={len(label)//2}]")
+    res['residual_{base}'] = dict(roc_auc=s1_baseline['score'], diff=0)
+    res['residual_{adapter}'] = dict(roc_auc=s1_interven['score'], diff=predictive)
 
-    s1_interven = check_lr_intervention_predictive(hs_normal-hs_intervene, label)
-    predictive = s1_interven - s1_baseline# > thresh
+    s1_interven2 = check_lr_intervention_predictive(hs_normal-hs_intervene, label, **model_kwargs)
+    predictive = s1_interven2['score'] - s1_baseline['score']# > thresh
     
-    if verbose: print(f"  - predictive power? {predictive} [i-b]  = baseline: {s1_baseline:.3f} > {s1_interven:.3f} roc_auc")
-    res['predictive_diff'] = dict(roc_auc_baseline=s1_baseline, roc_auc_interven=s1_interven, pred_inc=predictive)
+    # if verbose: print(f"  - predictive power? {predictive} [i-b]  = baseline: {s1_baseline:.3f} > {s1_interven:.3f} roc_auc")
+    res['residual_{base-adapter}'] = dict(roc_auc=s1_interven2['score'], diff=predictive)
 
     df_res = pd.DataFrame(res).T
-    df_res['pass'] = df_res['pred_inc'] > thresh
+    df_res['pass'] = df_res['diff'] > thresh
     df_styled = df_res.style.pipe(make_dfres_pretty, title)
     return df_styled
 
