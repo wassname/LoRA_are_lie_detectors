@@ -256,30 +256,6 @@ jupyter = ["ipython (>=7.8.0)", "tokenize-rt (>=3.2.0)"]
 uvloop = ["uvloop (>=0.15.2)"]
 
 [[package]]
-name = "botorch"
-version = "0.9.5"
-description = "Bayesian Optimization in PyTorch"
-optional = false
-python-versions = ">=3.9"
-files = [
-    {file = "botorch-0.9.5-py3-none-any.whl", hash = "sha256:bd86aa43b028bbb2959928790f0090351ce73fdefdab7502253a7e15db9c7a12"},
-    {file = "botorch-0.9.5.tar.gz", hash = "sha256:9e07193eb7cede00da0b8a2455b0423893c732a8ec61efff18e73f9ec7cbbd33"},
-]
-
-[package.dependencies]
-gpytorch = "1.11"
-linear-operator = "0.5.1"
-multipledispatch = "*"
-pyro-ppl = ">=1.8.4"
-scipy = "*"
-torch = ">=1.13.1"
-
-[package.extras]
-dev = ["black (==22.3.0)", "flake8", "flake8-docstrings", "pytest", "pytest-cov", "sphinx", "ufmt", "usort (==1.0.2)"]
-test = ["pytest", "pytest-cov"]
-tutorials = ["ax-platform", "cma", "jupyter", "kaleido", "matplotlib", "memory-profiler", "papermill", "pykeops", "torchvision"]
-
-[[package]]
 name = "certifi"
 version = "2023.11.17"
 description = "Python package for providing Mozilla's CA Bundle."
@@ -993,28 +969,6 @@ ssh = ["paramiko"]
 tqdm = ["tqdm"]
 
 [[package]]
-name = "gpytorch"
-version = "1.11"
-description = "An implementation of Gaussian Processes in Pytorch"
-optional = false
-python-versions = ">=3.8"
-files = [
-    {file = "gpytorch-1.11-py3-none-any.whl", hash = "sha256:188bfdbcafcb8f754382e54dc19bd21a86220aaf3ec1587cb8cbb7808876c4ef"},
-    {file = "gpytorch-1.11.tar.gz", hash = "sha256:72fbb72b8965e37e7bd53c5f17d08747a404d048e80ec9d9983dee51685d2760"},
-]
-
-[package.dependencies]
-linear-operator = ">=0.5.0"
-scikit-learn = "*"
-
-[package.extras]
-dev = ["pre-commit", "twine", "ufmt"]
-examples = ["ipython", "jupyter", "matplotlib", "scipy", "torchvision", "tqdm"]
-keops = ["pykeops (>=1.1.1)"]
-pyro = ["pyro-ppl (>=1.8)"]
-test = ["flake8 (==4.0.1)", "flake8-print (==4.0.0)", "nbval", "pytest"]
-
-[[package]]
 name = "huggingface-hub"
 version = "0.17.3"
 description = "Client library to download and publish models, datasets and other repos on the huggingface.co hub"
@@ -1487,27 +1441,6 @@ docs = ["requests (>=2.0.0)"]
 typing = ["mypy (>=1.0.0)", "types-setuptools"]
 
 [[package]]
-name = "linear-operator"
-version = "0.5.1"
-description = "A linear operator implementation, primarily designed for finite-dimensional positive definite operators (i.e. kernel matrices)."
-optional = false
-python-versions = ">=3.8"
-files = [
-    {file = "linear_operator-0.5.1-py3-none-any.whl", hash = "sha256:3d40ea5c93a230c8800df80993e49ecc7ec44e63081f80dde2bb0e2a082cb5b1"},
-    {file = "linear_operator-0.5.1.tar.gz", hash = "sha256:64d5fabd81bc77b3c84af966087bd2fae07b41a7c3823f28cfab49f3066fed1f"},
-]
-
-[package.dependencies]
-jaxtyping = ">=0.2.9"
-scipy = "*"
-torch = ">=1.11"
-typeguard = ">=2.13.3,<2.14.0"
-
-[package.extras]
-dev = ["pre-commit", "twine", "ufmt"]
-test = ["flake8 (==5.0.4)", "flake8-print (==5.0.0)", "pytest"]
-
-[[package]]
 name = "loguru"
 version = "0.7.2"
 description = "Python logging made (stupidly) simple"
@@ -1820,17 +1753,6 @@ files = [
 ]
 
 [[package]]
-name = "multipledispatch"
-version = "1.0.0"
-description = "Multiple dispatch"
-optional = false
-python-versions = "*"
-files = [
-    {file = "multipledispatch-1.0.0-py3-none-any.whl", hash = "sha256:0c53cd8b077546da4e48869f49b13164bebafd0c2a5afceb6bb6a316e7fb46e4"},
-    {file = "multipledispatch-1.0.0.tar.gz", hash = "sha256:5c839915465c68206c3e9c473357908216c28383b425361e5d144594bf85a7e0"},
-]
-
-[[package]]
 name = "multiprocess"
 version = "0.70.15"
 description = "better multiprocessing and multithreading in Python"
@@ -1942,24 +1864,6 @@ files = [
     {file = "numpy-1.26.2-pp39-pypy39_pp73-win_amd64.whl", hash = "sha256:fe6b44fb8fcdf7eda4ef4461b97b3f63c466b27ab151bec2366db8b197387841"},
     {file = "numpy-1.26.2.tar.gz", hash = "sha256:f65738447676ab5777f11e6bbbdb8ce11b785e105f690bc45966574816b6d3ea"},
 ]
-
-[[package]]
-name = "opt-einsum"
-version = "3.3.0"
-description = "Optimizing numpys einsum function"
-optional = false
-python-versions = ">=3.5"
-files = [
-    {file = "opt_einsum-3.3.0-py3-none-any.whl", hash = "sha256:2455e59e3947d3c275477df7f5205b30635e266fe6dc300e3d9f9646bfcea147"},
-    {file = "opt_einsum-3.3.0.tar.gz", hash = "sha256:59f6475f77bbc37dcf7cd748519c0ec60722e91e63ca114e68821c0c54a46549"},
-]
-
-[package.dependencies]
-numpy = ">=1.7"
-
-[package.extras]
-docs = ["numpydoc", "sphinx (==1.2.3)", "sphinx-rtd-theme", "sphinxcontrib-napoleon"]
-tests = ["pytest", "pytest-cov", "pytest-pep8"]
 
 [[package]]
 name = "optimum"
@@ -2534,48 +2438,6 @@ files = [
     {file = "pyreadline3-3.4.1-py3-none-any.whl", hash = "sha256:b0efb6516fd4fb07b45949053826a62fa4cb353db5be2bbb4a7aa1fdd1e345fb"},
     {file = "pyreadline3-3.4.1.tar.gz", hash = "sha256:6f3d1f7b8a31ba32b73917cefc1f28cc660562f39aea8646d30bd6eff21f7bae"},
 ]
-
-[[package]]
-name = "pyro-api"
-version = "0.1.2"
-description = "Generic API for dispatch to Pyro backends."
-optional = false
-python-versions = "*"
-files = [
-    {file = "pyro-api-0.1.2.tar.gz", hash = "sha256:a1b900d9580aa1c2fab3b123ab7ff33413744da7c5f440bd4aadc4d40d14d920"},
-    {file = "pyro_api-0.1.2-py3-none-any.whl", hash = "sha256:10e0e42e9e4401ce464dab79c870e50dfb4f413d326fa777f3582928ef9caf8f"},
-]
-
-[package.extras]
-dev = ["ipython", "sphinx (>=2.0)", "sphinx-rtd-theme"]
-test = ["flake8", "pytest (>=5.0)"]
-
-[[package]]
-name = "pyro-ppl"
-version = "1.8.6"
-description = "A Python library for probabilistic modeling and inference"
-optional = false
-python-versions = ">=3.7"
-files = [
-    {file = "pyro-ppl-1.8.6.tar.gz", hash = "sha256:00d2f4dda8a53e66d955124dc6e49e92dcf570cd3bd706825091db764d93cd07"},
-    {file = "pyro_ppl-1.8.6-py3-none-any.whl", hash = "sha256:18a28febe1be9c42af94a684c2971a798f2acb51f77b07e8430f146eafe11fed"},
-]
-
-[package.dependencies]
-numpy = ">=1.7"
-opt-einsum = ">=2.3.2"
-pyro-api = ">=0.1.1"
-torch = ">=1.11.0"
-tqdm = ">=4.36"
-
-[package.extras]
-dev = ["black (>=21.4b0)", "graphviz (>=0.8)", "jupyter (>=1.0.0)", "lap", "matplotlib (>=1.3)", "mypy (>=0.812)", "nbformat", "nbsphinx (>=0.3.2)", "nbstripout", "nbval", "ninja", "pandas", "pillow (==8.2.0)", "pypandoc", "pytest (>=5.0)", "pytest-xdist", "ruff", "scikit-learn", "scipy (>=1.1)", "seaborn (>=0.11.0)", "sphinx", "sphinx-rtd-theme", "torchvision (>=0.12.0)", "visdom (>=0.1.4,<0.2.2)", "wget", "yapf"]
-extras = ["graphviz (>=0.8)", "jupyter (>=1.0.0)", "lap", "matplotlib (>=1.3)", "pandas", "pillow (==8.2.0)", "scikit-learn", "seaborn (>=0.11.0)", "torchvision (>=0.12.0)", "visdom (>=0.1.4,<0.2.2)", "wget"]
-funsor = ["funsor[torch] (==0.4.4)"]
-horovod = ["horovod[pytorch] (>=0.19)"]
-lightning = ["pytorch-lightning"]
-profile = ["prettytable", "pytest-benchmark", "snakeviz"]
-test = ["black (>=21.4b0)", "graphviz (>=0.8)", "jupyter (>=1.0.0)", "lap", "matplotlib (>=1.3)", "nbval", "pandas", "pillow (==8.2.0)", "pytest (>=5.0)", "pytest-cov", "pytest-xdist", "ruff", "scikit-learn", "scipy (>=1.1)", "seaborn (>=0.11.0)", "torchvision (>=0.12.0)", "visdom (>=0.1.4,<0.2.2)", "wget"]
 
 [[package]]
 name = "python-dateutil"
@@ -4051,4 +3913,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.13"
-content-hash = "761e4c1b5cf3b2df1676c9fa676174a9aa8b1343f1f588f3ef7d8e77781983f3"
+content-hash = "89138036efeb67905cec4ab43b2672dad018fad0503393c79ae3b4457062e279"
