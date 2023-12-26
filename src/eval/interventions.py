@@ -1,103 +1,15 @@
 import sklearn
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, roc_auc_score
-from sklearn.linear_model import LogisticRegression
+from sklearn import metrics
 from einops import rearrange
 from sklearn.preprocessing import StandardScaler, RobustScaler
 import torch
 import pandas as pd
 from src.helpers.pandas_classification_report import classification_report, confusion_matrix
 from sklearn.model_selection import train_test_split
+from src.probes.utils import get_classification_report, preproc, postproc, make_dfres_pretty
+from src.probes.sk_lr import check_lr_intervention_predictive
 
-
-def get_classification_report(y_test, y_pred):
-    '''Source: https://stackoverflow.com/questions/39662398/scikit-learn-output-metrics-classification-report-into-csv-tab-delimited-format'''
-    from sklearn import metrics
-    report = metrics.classification_report(y_test, y_pred, output_dict=True)
-    df_classification_report = pd.DataFrame(report).transpose()
-    df_classification_report = df_classification_report.sort_values(by=['f1-score'], ascending=False)
-    return df_classification_report
-
-def preproc(X, y, with_scaling=True, with_centering=False):
-    N = len(X)//2
-    X_train, X_val = X[:N], X[N:]
-    y_train, y_val = y[:N], y[N:]
-
-    scaler = RobustScaler(with_centering=with_centering, with_scaling=with_scaling)
-    X_train = scaler.fit_transform(X_train)
-    X_val = scaler.transform(X_val)
-
-    print('x', torch.is_tensor(X))
-    if torch.is_tensor(X):
-        X_train = torch.from_numpy(X_train).float()
-        X_val = torch.from_numpy(X_val).float()
-
-    return X_train, X_val, y_train, y_val
-
-# TODO move to intervention
-def check_lr_intervention_predictive(hs, y, verbose=False, scale=True):
-    """
-    We want the hidden states resulting from interventions to have predictive power
-    Lets compare normal hidden states to intervened hidden states
-    """
-    X = rearrange(hs, 'b l hs -> b (l hs)')
-    X_train, X_val, y_train, y_val = preproc(X, y)
-
-    clf = LogisticRegression(random_state=42, max_iter=1000, class_weight='balanced',).fit(X_train, y_train)
-    y_val_prob = clf.predict_proba(X_val)[: ,1]
-
-
-    # score = roc_auc_score(y_val, y_val_prob)
-    # target_names = [0, 1]
-    # cm = confusion_matrix(y_val, y_val_pred, target_names=target_names, normalize='true')
-    # cr = classification_report(y_val, y_val_pred, target_names=target_names)
-    # if verbose:
-    #     print(cm)
-    #     print(cr)
-    
-    return prostproc(y_val_prob, y_val, verbose=verbose)
-
-
-def prostproc(y_val_prob, y_val, verbose=True):
-    y_val_pred = y_val_prob > 0.5
-    score = roc_auc_score(y_val, y_val_prob)
-    target_names = [0, 1]
-    cm = confusion_matrix(y_val, y_val_pred, target_names=target_names, normalize='true')
-    cr = classification_report(y_val, y_val_pred, target_names=target_names)
-    print(f"roc_auc_score: {score:.3f}")
-    if verbose:
-        print(cm)
-        print(cr)
-    return dict(score=score, y_val_pred=y_val_pred, y_val_prob=y_val_prob, y_val=y_val, cm=cm, cr=cr)
-
-def check_intervention_predictive_nn(hs, y):
-    """
-    We want the hidden states resulting from interventions to have predictive power
-    Lets compare normal hidden states to intervened hidden states
-    """
-    # TODO use a linear layer...
-    X = rearrange(hs, 'b l hs -> b (l hs)')
-    N = len(X)//2
-    X_train, X_val = X[:N], X[N:]
-    y_train, y_val = y[:N], y[N:]
-
-    scaler = StandardScaler(with_mean=False)
-    X_train = scaler.fit_transform(X_train)
-    X_val = scaler.transform(X_val)
-
-    clf = LogisticRegression(random_state=42, max_iter=1000, class_weight='balanced',).fit(X_train, y_train)
-    y_pred = clf.predict(X_train)
-    y_val_pred = clf.predict(X_val)
-    score = roc_auc_score(y_val, y_val_pred)
-    return score
-
-
-def make_dfres_pretty(styler, title):
-    styler.set_caption(title)
-    styler.background_gradient(axis='index', vmin=0, vmax=1, cmap="RdYlGn", 
-                               subset=['roc_auc', 'pass'])
-    styler.background_gradient(axis='index', vmin=-.05, vmax=.05, cmap="RdYlGn", 
-                               subset=['diff'])
-    return styler
 
 def test_intervention_quality2(ds_out, label_fn, thresh=0.03, take_diff=False, verbose=False, title="Intervention predictive power", skip=0, stride=1, model_kwargs={}):
     """

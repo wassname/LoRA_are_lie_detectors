@@ -27,6 +27,7 @@ def ds2label_model_truth(ds):
 
 def ranking_truth_telling(ds):
     """label whether the adapter or the base model were more truthfull."""
+    #note if we know which model is more truthfull, and it's a binary choice, we can take the choice that is in that direction as the truth
     return ds['correct_truth_telling_base'] < ds['correct_truth_telling_adapt']
 
 def ranking_instruction_following(ds):

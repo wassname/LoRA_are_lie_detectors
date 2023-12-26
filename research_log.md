@@ -341,3 +341,5 @@ mm
 # 2023-12-25 19:11:42
 
 Note there are probes of CCS here https://github.com/saprmarks/geometry-of-truth/blob/91b223224699754efe83bbd3cae04d434dda0760/probes.py#L75
+
+Wait why is ranking better? Does it make sense? Lets plot it
