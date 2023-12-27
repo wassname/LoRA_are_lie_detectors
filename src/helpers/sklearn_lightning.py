@@ -12,13 +12,13 @@ from torchmetrics.functional import accuracy, auroc
 import pandas as pd
 import numpy as np
 
-class PLBase(pl.LightningModule):
+class PLSKBase(pl.LightningModule):
     """
     Base pytorch lightning module, subclass to add model
     """
     def __init__(self, epoch_steps: int, max_epochs: int, lr=4e-3, weight_decay=1e-9):
         super().__init__()
-        self.probe = None # subclasses must add this
+        self.model = None # subclasses must add this
         self.total_steps = epoch_steps * max_epochs
         self.save_hyperparameters()
         
@@ -70,7 +70,7 @@ def read_metrics_csv(metrics_file_path):
     df_histe = df_hist.set_index("epoch").groupby("epoch").last().ffill().bfill()
     return df_histe
 
-class PLSKLearn:
+class PLSKWrapper:
 
     def __init__(self, pl_model, max_epochs=20, batch_size=32, verbose=False):
         self.max_epochs = max_epochs
@@ -79,12 +79,12 @@ class PLSKLearn:
         self.verbose=verbose
         self.batch_size = batch_size
 
-    def fit(self, X, y, X_val=None, y_val=None, **kwargs):
+    def fit(self, X_train, y_train, X_val=None, y_val=None, **kwargs):
 
-        dl_train = DataLoader(TensorDataset(X, y), batch_size=self.batch_size, shuffle=True)
+        dl_train = DataLoader(TensorDataset(X_train, y_train), batch_size=self.batch_size, shuffle=True)
         dl_val = None
         if X_val is not None:
-            dl_val = DataLoader(TensorDataset(X, y), batch_size=self.batch_size, shuffle=False)
+            dl_val = DataLoader(TensorDataset(X_val, y_val), batch_size=self.batch_size, shuffle=False)
         self.trainer = pl.Trainer(
             # gradient_clip_val=20,
             # accelerator="auto",
@@ -96,14 +96,15 @@ class PLSKLearn:
         self.trainer.fit(model=self.pl_model, train_dataloaders=dl_train, val_dataloaders=dl_val)
         
 
-        self.df_hist, _  = read_metrics_csv(self.trainer.logger.experiment.metrics_file_path)
+        self.df_hist = read_metrics_csv(self.trainer.logger.experiment.metrics_file_path)
         if self.verbose:
             suffixes = sorted(set([c.split('/')[0] for c in self.df_hist.columns]))
             for s in suffixes:
                 self.df_hist[[c for c in self.df_hist.columns if c.endswith(s)]].plot(title=s)
         return self
 
-    def predict_proba(self, X, y):
+    def predict_proba(self, X):
+        y = torch.zeros(len(X))
         dl_val = DataLoader(TensorDataset(X, y), batch_size=self.batch_size, shuffle=False)
         r = self.trainer.predict(self.pl_model, dataloaders=dl_val)
         y_pred_prob = torch.cat(r).flatten()
