@@ -9,7 +9,7 @@ from transformers.modeling_outputs import ModelOutput
 from jaxtyping import Float, Int
 from torch import Tensor
 
-from src.helpers.torch_helpers import clear_mem, detachcpu, recursive_copy
+from src.helpers.torch_helpers import clear_mem, detachcpu, recursive_copy, switch
 
 def hacky_sanitize_outputs(o):
     """I can't find the mem leak, so lets just detach, cpu, clone, free mem."""
@@ -18,10 +18,6 @@ def hacky_sanitize_outputs(o):
     clear_mem()
     return o
 
-def switch(p: Float[Tensor, ""], s: Float[Tensor, ""]):
-    """if the true label is 0, we will flip our binary prediction around. so 25% becomes 75%. It's the rating of how correct our answer was from 0 to 1"""
-    s = s.float()
-    return (1 - s) * (1-p) + s * p
 
 def postprocess_result(i, o, get_residual=True):
 

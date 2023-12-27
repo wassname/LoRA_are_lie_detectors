@@ -75,7 +75,6 @@ def qc_dsdf(df, verbose=0):
 
     d = df.query('instructed_to_lie==False')
     if len(d):
-        # TODO replace with AUROC
         acc = (d.label_instructed==d['ans']).mean()
         acc = roc_auc_score(d.label_instructed, d['ans'])
         # assert np.isfinite(acc)
@@ -87,7 +86,6 @@ def qc_dsdf(df, verbose=0):
     # check LLM lie freq
     d = df.query('instructed_to_lie==True')
     if len(d):
-        # TODO replace with AUROC
         acc = (d.label_instructed==d['ans']).mean()
         acc = roc_auc_score(d.label_instructed, d['ans'])
         # assert np.isfinite(acc)
@@ -100,7 +98,6 @@ def qc_dsdf(df, verbose=0):
     df_known = filter_df_to_known(df, verbose=False)
     d = df_known.query('instructed_to_lie==True')
     if len(d):
-        # TODO replace with AUROC
         acc = (d.label_instructed==d['ans']).mean()
         acc = roc_auc_score(d.label_instructed, d['ans'])
 

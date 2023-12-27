@@ -323,7 +323,12 @@ def load_preproc_datasets(dataset_names: List[str], tokenizer: PreTrainedTokeniz
             prompt_format=prompt_format,
         ).with_format("torch")
         datasets2.append(ds_tokens1)
-    ds_tokens = datasets.interleave_datasets(datasets2)
+    ds_tokens = datasets.interleave_datasets(datasets2, seed=seed)
+
+    # inds = list(range(ds_tokens))
+    # Random(seed).shuffle(inds)
+    # ds_tokens = ds_tokens.select(inds)
+
     return ds_tokens
 
 

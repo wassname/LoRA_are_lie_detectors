@@ -1,3 +1,9 @@
+from datasets import Dataset
+from src.helpers.torch_helpers import clear_mem, detachcpu, recursive_copy, switch
+from torch import Tensor
+from jaxtyping import Float
+
+
 def ds2label_model_obey(ds):
     """label: whether the model obeyed the instruction to lie"""
     label_instructed = ds["label_true_base"] ^ ds["instructed_to_lie_base"]
@@ -28,7 +34,13 @@ def ds2label_model_truth(ds):
 def ranking_truth_telling(ds):
     """label whether the adapter or the base model were more truthfull."""
     #note if we know which model is more truthfull, and it's a binary choice, we can take the choice that is in that direction as the truth
-    return ds['correct_truth_telling_base'] < ds['correct_truth_telling_adapt']
+    return ds['correct_truth_telling_base'] > ds['correct_truth_telling_adapt']
+
+
+def undo_ranked_truth_telling(base_more_truthful: Float[Tensor, ''], ds: Dataset, ):
+    #note if we know which model is more truthful, and it's a binary choice, we can take the choice that is in that direction as the truth
+    base_more_positive = (ds['binary_ans_base'] > ds['binary_ans_adapt']) * 1.0
+    return switch(base_more_positive, base_more_truthful)
 
 def ranking_instruction_following(ds):
     """label whether the adapter or the base model were more instruction following."""

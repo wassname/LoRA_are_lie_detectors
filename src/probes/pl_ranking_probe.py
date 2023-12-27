@@ -19,11 +19,11 @@ class PLRankingBase(PLBase):
     def _step(self, batch, batch_idx, stage='train'):
         x0, x1, y = batch
 
-        # Swap sometimes, not really needed?
-        if rand()>0.5:
-            x0, x1 = x1, x0
-            assert y.dtype==torch.float32, f"y.dtype={y.dtype}"
-            y = -y
+        # # Swap sometimes, not really needed?
+        # if rand()>0.5:
+        #     x0, x1 = x1, x0
+        #     assert y.dtype==torch.float32, f"y.dtype={y.dtype}"
+        #     y = -y
         
         ypred0 = self(x0)
         ypred1 = self(x1)
@@ -117,8 +117,8 @@ class LinBnDrop(nn.Module):
     
 
 class PLConvProbeLinear(PLRankingBase):
-    def __init__(self, c_in, total_steps, depth=0, lr=4e-3, weight_decay=1e-9, hs=64, dropout=0, **kwargs):
-        super().__init__(total_steps=total_steps, lr=lr, weight_decay=weight_decay)
+    def __init__(self, c_in, epoch_steps, max_epochs, depth=0, lr=4e-3, weight_decay=1e-9, hs=64, dropout=0, **kwargs):
+        super().__init__(epoch_steps=epoch_steps, max_epochs=max_epochs, lr=lr, weight_decay=weight_decay)
         self.save_hyperparameters()
         
         

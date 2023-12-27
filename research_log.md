@@ -343,3 +343,29 @@ mm
 Note there are probes of CCS here https://github.com/saprmarks/geometry-of-truth/blob/91b223224699754efe83bbd3cae04d434dda0760/probes.py#L75
 
 Wait why is ranking better? Does it make sense? Lets plot it
+
+- [ ] TODO: Hmm I should be able to calculate the truth from any label I use right? Let's check that!!
+  - [ ] I can just fork
+
+
+~~Hmm I can undo that ranking label. But once I crunch the numbers... it'sn ot that accurate. It seems to distort the real objective. And if it doesn't help them perhaps my adapter > probe hypothesis is disproven.~~ 0.98->0.96 roc_auc... still good
+
+
+# 2023-12-27 06:00:10
+
+A nicer way to code the labels
+```py
+ds_train, ds_val = test_train_split(ds)
+y_val = ds2proxy(ds_val)
+y = proxy2label(y_val, ds_val)
+```
+
+
+Can i make lightning models with a sklearn like interface?
+see
+- https://github.com/huonfraser/scikit-TabTorch/blob/master/sklike_torch/torch_wrapper.py
+
+
+TODO
+- try pl sk api
+- I need to flip my rankings....

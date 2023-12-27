@@ -40,6 +40,15 @@ import gc
 #         x = x.detach().cpu().item()
 #     return x
 
+from jaxtyping import Float, Int
+from torch import Tensor
+
+def switch(p: Float[Tensor, ""], s: Float[Tensor, ""]):
+    """if the true label is 0, we will flip our binary prediction around. so 25% becomes 75%. It's the rating of how correct our answer was from 0 to 1"""
+    s = s.float()
+    return (1 - s) * (1-p) + s * p
+
+
 def clear_mem():
     gc.collect()
     # get_accelerator().empty_cache()
