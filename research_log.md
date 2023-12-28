@@ -369,3 +369,6 @@ see
 TODO
 - try pl sk api
 - I need to flip my rankings....
+
+
+Hmm wait I was filtering by known. That no longer makes sense when I am trying to exceed known. Really I need a better idea of known, but it's not possible to garuntee I'm extracting all the knowledge of a question from a model. Maybe if I use a lying adapter. But that's another exp.

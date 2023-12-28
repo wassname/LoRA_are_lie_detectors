@@ -35,7 +35,7 @@ class PLSKBase(pl.LightningModule):
         if stage=='pred':
             return y_probs
         
-        loss = F.binary_cross_entropy_with_logits(logits, y)
+        loss = F.binary_cross_entropy_with_logits(logits, y.float())
         
         self.log(f"{stage}/acc", accuracy(y_cls, y, "binary"), on_epoch=True, on_step=False)
         self.log(f"{stage}/auroc", auroc(y_probs, y, "binary"), on_epoch=True, on_step=False)
@@ -85,9 +85,9 @@ class PLSKWrapper:
         dl_val = None
         if X_val is not None:
             dl_val = DataLoader(TensorDataset(X_val, y_val), batch_size=self.batch_size, shuffle=False)
+
         self.trainer = pl.Trainer(
-            # gradient_clip_val=20,
-            # accelerator="auto",
+            gradient_clip_val=20,
             max_epochs=self.max_epochs,
             log_every_n_steps=1,
             enable_progress_bar=self.verbose, enable_model_summary=self.verbose,
@@ -98,9 +98,12 @@ class PLSKWrapper:
 
         self.df_hist = read_metrics_csv(self.trainer.logger.experiment.metrics_file_path)
         if self.verbose:
-            suffixes = sorted(set([c.split('/')[0] for c in self.df_hist.columns]))
+            suffixes = sorted(set([c.split('/')[-1] for c in self.df_hist.columns]))
             for s in suffixes:
-                self.df_hist[[c for c in self.df_hist.columns if c.endswith(s)]].plot(title=s)
+                if len(s)>1:
+                    d = self.df_hist[[c for c in self.df_hist.columns if c.endswith(s)]]
+                    if len(d):
+                        d.plot(title=s)
         return self
 
     def predict_proba(self, X):
