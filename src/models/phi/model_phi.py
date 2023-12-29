@@ -80,6 +80,8 @@ class Embedding(nn.Module):
         hidden_states = self.wte(input_ids)
         hidden_states = self.drop(hidden_states)
 
+        hidden_states = hidden_states.to(self.wte.weight.dtype)
+
         return hidden_states
 
 

@@ -24,7 +24,7 @@ def verbose_change_param(tokenizer, path, after):
     return tokenizer
 
 
-def load_model(model_repo =  "microsoft/phi-2", adaptor_path=None, device="auto", bnb=True, dtype=torch.bfloat16, model_class=AutoModelForCausalLM) -> Tuple[AutoModelForCausalLM, PreTrainedTokenizerBase,]:
+def load_model(model_repo =  "microsoft/phi-2", adaptor_path=None, device="auto", bnb=True, dtype=torch.float16, model_class=AutoModelForCausalLM) -> Tuple[AutoModelForCausalLM, PreTrainedTokenizerBase,]:
     """
     A uncensored and large coding ones might be best for lying.
     

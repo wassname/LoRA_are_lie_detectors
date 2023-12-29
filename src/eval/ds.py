@@ -57,8 +57,10 @@ def ds2df(ds, cols=None):
     if 'choice_probs_adapt' in ds.column_names:
         df['choice_probs_adapt'] = np.sum(ds['choice_probs_adapt'], 1)
         df['ans_adapt'] = df['binary_ans_adapt'] >0.5
-    df['choice_probs_base'] = np.sum(ds['choice_probs_base'], 1)
-    df['ans_base'] = df['binary_ans_base'] >0.5
+    if 'choice_probs_base' in ds.column_names:
+        df['choice_probs_base'] = np.sum(ds['choice_probs_base'], 1)
+    if 'binary_ans_base' in ds.column_names:
+        df['ans_base'] = df['binary_ans_base'] >0.5
     # df['label_instructed'] = df['label_true_base'] ^ df['instructed_to_lie_base']
     return df.copy()
 

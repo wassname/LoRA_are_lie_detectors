@@ -16,9 +16,10 @@ def generate_batches(loader: DataLoader, model: AutoModelForCausalLM, get_residu
         logger.warning("model does not have disable_adapter")
     model.eval()
     for batch in tqdm(loader, 'collecting hidden states'):
+        device = next(model.parameters()).device
         b_in = dict(
-            input_ids=batch["input_ids"].clone(),
-            attention_mask=batch["attention_mask"].clone(),
+            input_ids=batch["input_ids"].clone().to(device),
+            attention_mask=batch["attention_mask"].clone().to(device),
         )
         if hasattr(model, 'disable_adapter'):
             with model.disable_adapter():
@@ -48,9 +49,9 @@ def ds_hash(**kwargs):
     return suffix
 
 
-def manual_collect2(loader: DataLoader, model: AutoModelForCausalLM, dataset_name='', get_residual=True):
+def manual_collect2(loader: DataLoader, model: AutoModelForCausalLM, dataset_name='', get_residual=True, dataset_dir=root_folder):
     hash = ds_hash(generate_batches=generate_batches, loader=loader, model=model)
-    f = root_folder / ".ds" / f"ds_{dataset_name}_{hash}"
+    f = dataset_dir / ".ds" / f"ds_{dataset_name}_{hash}"
     f.parent.mkdir(exist_ok=True, parents=True)
     f = str(f)
     logger.info(f"creating dataset {f}")

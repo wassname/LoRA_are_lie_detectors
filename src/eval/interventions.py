@@ -7,7 +7,7 @@ import torch
 import pandas as pd
 from src.helpers.pandas_classification_report import classification_report, confusion_matrix
 from sklearn.model_selection import train_test_split
-from src.probes.utils import get_classification_report, preproc, postproc, make_dfres_pretty
+from src.probes.utils import postproc, make_dfres_pretty
 from src.probes.sk_lr import check_lr_intervention_predictive
 
 
@@ -33,6 +33,7 @@ def test_intervention_quality2(ds_out, label_fn, thresh=0.03, take_diff=False, v
     hs_intervene = ds_out['end_residual_stream_adapt'][:, skip::stride]
 
     # print(f"## primary metric: predictive power (of logistic regression on top of intervened hidden states to predict base model Y) [N={len(label)//2}]")
+    # TODO fix this, take code from 10_compare_probes
     s1_baseline = check_lr_intervention_predictive(hs_normal, label, **model_kwargs)
     s1_interven = check_lr_intervention_predictive(hs_intervene, label, **model_kwargs)
     predictive = s1_interven['score'] - s1_baseline['score']# > thresh

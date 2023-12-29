@@ -82,3 +82,4 @@ def make_dfres_pretty(styler, title):
         axis="index", vmin=-0.05, vmax=0.05, cmap="RdYlGn", subset=["diff"]
     )
     return styler
+

@@ -372,3 +372,101 @@ TODO
 
 
 Hmm wait I was filtering by known. That no longer makes sense when I am trying to exceed known. Really I need a better idea of known, but it's not possible to garuntee I'm extracting all the knowledge of a question from a model. Maybe if I use a lying adapter. But that's another exp.
+
+
+finished the truth adapter vs probe experiment. 
+
+the adapter generalized better
+see
+notebooks/10_compare_probes.ipynb
+cfac3cdef758d66c42469bdd94c12d6cc23e1227
+
+# PEFT modules?
+
+UniPELTConfig The UniPELT adapter architecture proposed by Mao et al. (2022). See https://arxiv.org/pdf/2110.07577.pdf.
+
+
+- https://github.com/adapter-hub/adapters/blob/main/src/adapters/configuration/adapter_config.py#L629C1-L652C32
+	- # CURRENT STRINGS
+	- "seq_bn": SeqBnConfig(),
+	- "double_seq_bn": DoubleSeqBnConfig(),
+	- "par_bn": ParBnConfig(),
+	- "scaled_par_bn": ParBnConfig(scaling="learned"),
+	- "seq_bn_inv": SeqBnInvConfig(),
+	- "double_seq_bn_inv": DoubleSeqBnInvConfig(),
+	- "compacter++": CompacterPlusPlusConfig(),
+	- "compacter": CompacterConfig(),
+	- "prefix_tuning": PrefixTuningConfig(),
+	- "prefix_tuning_flat": PrefixTuningConfig(flat=True),
+	- "prompt_tuning": PromptTuningConfig(),
+	- "lora": LoRAConfig(),
+	- "ia3": IA3Config(),
+	- "mam": MAMConfig(),
+	- "unipelt": UniPELTConfig(),
+- peft https://github.dev/huggingface/peft
+  - adalora - adaptive hyperparams for lora
+  - ~~adaption prompt~~
+  - ia3 - it's like lora 2.0
+  - loha - Low-Rank Hadamard Product   https://arxiv.org/abs/2108.06098 lots of p[arams
+  - lokr - Low-Rank Kronecker Product  - 
+  - lora
+  - mixes
+  - ~~multi_task_prompt_tuning~~
+  - oft - Orthogonal Finetuning mode
+  - ~~p_tuning~~
+  - ~~prefix_tuning~~
+  - ~~prompt_tuning~~
+
+
+
+ia3, which modules
+
+k v not o or q
+one of the mlp. in this case it was an intermediateo ne? wi_1 the middle one, not the out one
+
+# 2023-12-29 07:28:30
+
+IA3 seems better but it's not learning, more epochs seem to help? more params too
+also I need to fix intervention code
+
+plus I would like to use IA3 to get an lie detection importance matrix. Then I can use that with a VAE, and see if it's helpfull to a probe! I would need to configure it to work on the residual only?
+
+out_proj + fc2 combined?
+- run this, why not?
+- also seems
+
+# 2023-12-29 12:00:11 VAE + Importance
+
+Step 1: I use IA3 configured on just the the parts the directly effect the residual 
+
+```py
+peft_config = IA3Config(
+    task_type=TaskType.SEQ_CLS, target_modules=[  "fc2", "out_proj"], 
+        # feedforward_modules=["fc2","out_proj", ]
+)
+```
+
+Note that this is not that flexible. It can only learn to lie on 40% (up from 26) on known questions. But iit's good for an importance matrix.
+Wait that was with the start of the MLP, with the end it learns nothing!
+So it modifying the residual stream doesn't change it's behaviour, I can infer that the residual stream is not important for lie detection. This kind of fits with the poor results people have been getting.
+Logically what's important are the activations on the default params! So I should try using them!! That's the output of Wqkv and and output of fc1 (input of fc2). these are the ia3 params
+
+# for normal ia3 seetings see https://github.com/huggingface/peft/blob/cf04d0353f0343cbf66627228c4495f51669af34/src/peft/utils/constants.py#L81
+# and https://github.com/huggingface/peft/blob/cf04d0353f0343cbf66627228c4495f51669af34/src/peft/utils/constants.py#L102
+
+TODO:
+- [ ] read anthropic [paper](https://transformer-circuits.pub/2022/toy_model/index.html) on importance matrix, 
+  - [x] [maybe reply to colin](https://www.lesswrong.com/posts/LnHowHgmrMbWtpkxx/intro-to-superposition-and-sparse-autoencoders-colab)
+
+> Consider a toy model where we train an embedding of five features of varying importanceWhere “importance” is a scalar multiplier on mean squared error loss. in two dimensions, add a ReLU afterwards for filtering, and vary the sparsity of the features. With dense features, the model learns to represent an orthogonal basis of the most important two features (similar to what Principal Component Analysis might give us), and the other three features are not represented. But if we make the features sparse, this changes:
+> Where “importance” is a scalar multiplier on mean squared error loss.
+>
+> Features Vary in Importance: Not all features are equally useful to a given task. Some can reduce the loss more than others. For an ImageNet model, where classifying different species of dogs is a central task, a floppy ear detector might be one of the most important features it can have. In contrast, another feature might only very slightly improve performance
+	> r computational reasons, we won't focus on it in this article, but we often imagine an infinite number of features with importance asymptotically approaching zero.
+
+
+# data sets I would like custom prompts for
+
+math
+ScienceQA
+TruthfullQA

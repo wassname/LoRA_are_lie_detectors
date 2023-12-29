@@ -395,7 +395,7 @@ def load_preproc_dataset(ds_name: str, tokenizer: PreTrainedTokenizerBase, N:int
     ds_tokens = ds_tokens.filter(lambda r: r["truncated"] == False)
 
     # print('num_rows', ds_tokens.num_rows)
-    ds_tokens = shuffle_dataset_by(ds_tokens, 'example_i', rng=rng)
+    ds_tokens = shuffle_dataset_by(ds_tokens, target='label_true', random_state=seed, stratify_columns=[])
     # print('num_rows', ds_tokens.num_rows)
     
     # ## Filter out truncated examples
