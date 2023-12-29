@@ -21,6 +21,9 @@ class ExtractConfig(Serializable):
     # model: str = "/media/wassname/SGIronWolf/projects5/elk/sgd_probes_are_lie_detectors/phi-1_5"
     model: str = "wassname/phi-1_5-w_hidden_states"
 
+    # collection_layers: tuple[str, ...] = ("layer.0", "layer.1", "layer.2", "layer.3", "layer.4", "layer.5", "layer.6", "layer.7", "layer.8", "layer.9", "layer.10", "layer.11")
+    # """Names of layers to extract from using baukit.nethook.TraceDict"""
+
     batch_size: int = 2
 
     prompt_format: str | None = 'phi'

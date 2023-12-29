@@ -454,6 +454,15 @@ Logically what's important are the activations on the default params! So I shoul
 # for normal ia3 seetings see https://github.com/huggingface/peft/blob/cf04d0353f0343cbf66627228c4495f51669af34/src/peft/utils/constants.py#L81
 # and https://github.com/huggingface/peft/blob/cf04d0353f0343cbf66627228c4495f51669af34/src/peft/utils/constants.py#L102
 
+
+            "help": (
+                "List of module names or regex expression of the module names to replace with LoRA."
+                "For example, ['q', 'v'] or '.*decoder.*(SelfAttention|EncDecAttention).*(q|v)$'. "
+                "If not specified, modules will be chosen according to the model architecture, If the architecture is "
+                "not known, an error will be raised -- in this case, you shoud specify the target modules manually."
+            ),
+
+
 TODO:
 - [ ] read anthropic [paper](https://transformer-circuits.pub/2022/toy_model/index.html) on importance matrix, 
   - [x] [maybe reply to colin](https://www.lesswrong.com/posts/LnHowHgmrMbWtpkxx/intro-to-superposition-and-sparse-autoencoders-colab)
