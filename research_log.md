@@ -497,7 +497,7 @@ So I'm trying to do that experiment where I take the residual at the same point 
   - it is active
   - it has grad
   - it's stil l1 after training :(
-- **ranger21? YES!!** wth
+- **ranger21? YES!!** WTH
 
 success criteria
 - if train loss should go from 3-5 to 1-3 in the first epoch at least for nll
@@ -513,6 +513,7 @@ same multitask mixture for T0. As an objective, we use
 - and a length-normalized loss LLN. 
 - We train for 1,000 steps with a batch size of 8 sequences using the Adafactor optimizer [ 49] with a learning rate of 3e−3 and a linear decay schedule with a 60-step warmup. 
 
+# unlikelihood loss LUL
 
 ```py
 # https://github.com/r-three/t-few/blob/114deced63ae722a368e06cb08ea956b20c393a6/src/models/EncoderDecoder.py#L94
@@ -527,8 +528,7 @@ cand_loglikely[range(bs), labels] = -100
 unlikely_loss = -torch.log(1 - torch.exp(cand_loglikely) + 1e-2).sum() / (cand_loglikely != -100).sum()
 ```
 
-TODO
-- [ ] fix IA3
+
 
 
 
@@ -555,3 +555,11 @@ but phi had annoying programming. It keep resetting to 32 bit. But if I used 16-
 Note without bnb I run out of mem with 1 batch
 
 with hard 16 I get inf, so I proboly need the lroa parts to be 32.
+
+
+TODO
+- [x] fix IA3
+- [ ] unlikelihood loss LUL
+- [ ] AEC
+  - [ ] extract importance matrix from adapter
+  - [ ] handle new formats
