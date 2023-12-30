@@ -10,8 +10,9 @@ from jaxtyping import Float, Int
 from torch import Tensor
 from typing import Any, Dict, List, Optional, Tuple, Union
 from baukit.nethook import TraceDict
-
+from torch import optim
 from src.helpers.torch_helpers import clear_mem, detachcpu, recursive_copy, switch
+import bitsandbytes as bnb
 
 def hacky_sanitize_outputs(o):
     """I can't find the mem leak, so lets just detach, cpu, clone, free mem."""
@@ -105,6 +106,7 @@ class AtapterFinetuner(pl.LightningModule):
         total_steps: int = 1,
         lr=4e-3,
         weight_decay=1e-9,
+        collection_layers:list=[]
     ):
         super().__init__()
         self.model = model
@@ -168,20 +170,27 @@ class AtapterFinetuner(pl.LightningModule):
         return loss, loss_choices, loss_all
 
     def _step(self, batch, batch_idx=0, stage="train"):
+
+        if stage == "pred":
+            # FIXME, not used in collect
+            with TraceDict(self.model, self.hparams.collection_layers, detach=True) as ret:
+                with self.model.disable_adapter():
+                    out = self(batch)
+            with TraceDict(self.model, self.hparams.collection_layers, detach=True) as ret_a:
+                out_a = self(batch)
+            res = {f'{k}_base':v for k,v in postprocess_result(batch, ret, out).items()}
+            res_a = {f'{k}_adapt':v for k,v in postprocess_result(batch, ret_a, out_a).items()}
+            res = dict(**res, **res_a)
+            res_a = out = out_a = None
+            clear_mem()
+            return res
+        
         with torch.no_grad():
             with self.model.disable_adapter():
                 out = self(batch)
 
         # self.model.enable_adapters()
         out_a = self(batch)
-
-        if stage == "pred":
-            res = {f'{k}_base':v for k,v in postprocess_result(batch, out).items()}
-            res_a = {f'{k}_adapt':v for k,v in postprocess_result(batch, out_a).items()}
-            res = dict(**res, **res_a)
-            res_a = out = out_a = None
-            clear_mem()
-            return res
         
         loss, loss_choices, loss_all = self.get_loss(batch, out, out_a)
         assert torch.isfinite(loss)
@@ -190,6 +199,8 @@ class AtapterFinetuner(pl.LightningModule):
         self.log(f"{stage}/loss",loss, on_epoch=True, on_step=True, batch_size=batch_size, 
         prog_bar=True)
         self.log(f"{stage}/n", batch_size* 1.0, on_epoch=True, on_step=False, reduce_fx=torch.sum)
+        # loss diff with old?
+        self.log(f"{stage}/logits_diff", torch.abs(out.logits - out.logits).mean(), on_step=True, batch_size=batch_size)
         return loss
 
     def training_step(self, batch, batch_idx=0, dataloader_idx=0):
@@ -205,13 +216,23 @@ class AtapterFinetuner(pl.LightningModule):
     def test_step(self, batch, batch_idx=0, dataloader_idx=0):
         return self._step(batch, batch_idx, stage="test")
 
+    # def configure_optimizers(self):
+    #     """use ranger21 from  https://github.com/kozistr/pytorch_optimizer"""
+    #     assert self.hparams.total_steps>1
+    #     optimizer = Ranger21(
+    #         self.parameters(),
+    #         lr=self.hparams.lr,
+    #         weight_decay=self.hparams.weight_decay,
+    #         num_iterations=self.hparams.total_steps,
+    #     )
+    #     return optimizer
+    
     def configure_optimizers(self):
-        """use ranger21 from  https://github.com/kozistr/pytorch_optimizer"""
-        assert self.hparams.total_steps>1
-        optimizer = Ranger21(
-            self.parameters(),
-            lr=self.hparams.lr,
-            weight_decay=self.hparams.weight_decay,
-            num_iterations=self.hparams.total_steps,
+        """simple vanilla torch optim"""
+        optimizer = optim.AdamW(self.parameters(), lr=self.hparams.lr, weight_decay=self.hparams.weight_decay)
+        # https://lightning.ai/docs/pytorch/stable/common/precision_intermediate.html#quantization-via-bitsandbytes
+        # optimizer = bnb.optim.AdamW8bit(self.parameters(), lr=self.hparams.lr, weight_decay=self.hparams.weight_decay)
+        lr_scheduler = optim.lr_scheduler.OneCycleLR(
+            optimizer, self.hparams.lr, total_steps=self.hparams.total_steps
         )
-        return optimizer
+        return [optimizer], [lr_scheduler]

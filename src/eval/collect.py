@@ -25,8 +25,8 @@ def generate_batches(loader: DataLoader, model: AutoModelForCausalLM, layers, ge
             attention_mask=batch["attention_mask"].clone().to(device),
         )
         if hasattr(model, 'disable_adapter'):
-            with model.disable_adapter():
-                with TraceDict(model, layers, detach=True) as ret:
+            with TraceDict(model, layers, detach=True) as ret:
+                with model.disable_adapter():
                     out = model(**b_in, use_cache=False, output_hidden_states=True, return_dict=True)
                 res = {f'{k}_base':v for k,v in postprocess_result(batch, ret, out, get_residual=get_residual).items()}
                 del out

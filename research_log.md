@@ -479,3 +479,79 @@ TODO:
 math
 ScienceQA
 TruthfullQA
+
+# 2023-12-30 07:15:34
+
+So I'm trying to do that experiment where I take the residual at the same point that IA3 intervenes. But suddenly it's not learning. Why? :bug:
+
+- x disable bitsandbytes bnb, nope
+- x needs out_project, nope still not learning
+- x make some feedforward... yes. WTF it seems like in the peft implementation of ia3. only the feedforward ones are learning. Or is it due to tracedict? no that's only on during collect
+- x it's not inference_mode is it, what does that do
+- x is it grad accum? no
+- x make sure I set taks to causal no
+- x grad clip no
+- turn of 16b train? 
+- avoid lightning?
+- a big in the peft code... not that I can see or inspect during debugging
+  - it is active
+  - it has grad
+  - it's stil l1 after training :(
+- **ranger21? YES!!** wth
+
+success criteria
+- if train loss should go from 3-5 to 1-3 in the first epoch at least for nll
+
+
+what is T-frw from the ia3 paper?
+
+n summary, the T-Few recipe is defined as follows: We use the T0 model as a backbone. We add
+(IA)3 for downstream task adaptation and use parameters initialized from pre-training (IA)3 on the
+same multitask mixture for T0. As an objective, we use
+- the sum of a standard language modeling loss LLM, 
+- **an unlikelihood loss LUL for incorrect choices** see 3.2 https://arxiv.org/pdf/2205.05638.pdf
+- and a length-normalized loss LLN. 
+- We train for 1,000 steps with a batch size of 8 sequences using the Adafactor optimizer [ 49] with a learning rate of 3e−3 and a linear decay schedule with a 60-step warmup. 
+
+
+```py
+# https://github.com/r-three/t-few/blob/114deced63ae722a368e06cb08ea956b20c393a6/src/models/EncoderDecoder.py#L94
+lm_target = flat_choices_ids - 100 * (flat_choices_ids == self.tokenizer.pad_token_id).long()
+
+
+cand_loglikely = -F.cross_entropy(
+    model_output.logits.flatten(0, 1), lm_target.flatten(0, 1), reduction="none"
+).view(bs, num_choices, -1)
+cand_loglikely += (lm_target < 0).view(bs, num_choices, -1) * -100
+cand_loglikely[range(bs), labels] = -100
+unlikely_loss = -torch.log(1 - torch.exp(cand_loglikely) + 1e-2).sum() / (cand_loglikely != -100).sum()
+```
+
+TODO
+- [ ] fix IA3
+
+
+
+# why does ia3 only work for feedforward_modules/
+
+trace it in peft...
+
+is_feedforward
+
+
+
+
+bitsandbytes, I have "0.41.3.post2", latest is 0.41.3.post1 ?
+peft, I have 0.7.1, latest 0.7.1
+transformers "4.34.0", latest Patch release: v4.36.
+
+
+# try precision once again
+
+If I want true bnb, I load and follow this https://lightning.ai/docs/pytorch/stable/common/precision_intermediate.html#quantization-via-bitsandbytes
+
+but phi had annoying programming. It keep resetting to 32 bit. But if I used 16-mixed at least the ensures the right type.
+
+Note without bnb I run out of mem with 1 batch
+
+with hard 16 I get inf, so I proboly need the lroa parts to be 32.

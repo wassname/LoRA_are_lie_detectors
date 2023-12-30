@@ -2,17 +2,20 @@ from lightning.pytorch.loggers.csv_logs import CSVLogger
 from pathlib import Path
 import pandas as pd
 import re
+from matplotlib import pyplot as plt
+
 
 def read_metrics_csv(metrics_file_path):
     df_hist = pd.read_csv(metrics_file_path)
     df_hist["epoch"] = df_hist["epoch"].ffill()
     df_histe = df_hist.set_index("epoch").groupby("epoch").last().ffill().bfill()
 
-    # FIXME, it turns out steps doesn't make sense. That is step of train and val are not comparable
+    # note the "step" columns is the step of either val or train, not total steps
     df_hist = pd.read_csv(metrics_file_path)
     df_hist_step = df_hist.copy().dropna(axis=1, thresh=len(df_hist)//10)#.dropna(axis=0)
     if 'epoch' in df_hist_step.columns:
         df_hist_step = df_hist_step.drop(columns=['epoch'])
+    df_hist_step.index.name = 'total_step'
 
     return df_histe, df_hist_step
         
@@ -34,3 +37,13 @@ def rename_pl_test_results(rs, ks=["train", "val", "test"]):
         (k): v for k, v in rs[i].items()} for i in range(len(ks))
     }
     return rs
+
+def plot_hist(df_hist):
+    """
+    assuming lightning logs metrics as train/loss etc, lets plot groups of suffixes together and ignore indexes like "step"
+    """
+    suffixes = list(set([c.split('/')[-1] for c in df_hist.columns if '/' in c]))
+    for suffix in suffixes:
+        df_hist[[c for c in df_hist.columns if c.endswith(suffix) and '/' in c]].plot(title=suffix, style='.')
+        plt.title(suffix)   
+        plt.show()

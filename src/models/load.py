@@ -24,7 +24,7 @@ def verbose_change_param(tokenizer, path, after):
     return tokenizer
 
 
-def load_model(model_repo =  "microsoft/phi-2", adaptor_path=None, device="auto", bnb=True, dtype=torch.float16, model_class=AutoModelForCausalLM) -> Tuple[AutoModelForCausalLM, PreTrainedTokenizerBase,]:
+def load_model(model_repo =  "microsoft/phi-2", adaptor_path=None, device="auto", bnb=True, dtype=torch.float16, model_class=AutoModelForCausalLM, trust_remote_code=False) -> Tuple[AutoModelForCausalLM, PreTrainedTokenizerBase,]:
     """
     A uncensored and large coding ones might be best for lying.
     
@@ -32,16 +32,19 @@ def load_model(model_repo =  "microsoft/phi-2", adaptor_path=None, device="auto"
     quantization_config=BitsAndBytesConfig(
         load_in_4bit=True,
         bnb_4bit_compute_dtype=dtype,  # bfloat16 is recommended
-        # bnb_4bit_use_double_quant=False,
-        # bnb_4bit_quant_type='nf4',
+        bnb_4bit_use_double_quant=False,
+        bnb_4bit_quant_type='nf4',
+        # load_in_8bit=True,
+        # bnb_8bit_compute_dtype=dtype,  # bfloat16 is recommended
     )
     if not bnb:
         quantization_config = None
     model_options = dict(
         device_map=device,
         torch_dtype=dtype, 
-        trust_remote_code=True,
+        trust_remote_code=trust_remote_code,
         quantization_config=quantization_config,
+        load_in_8bit=True if bnb else None, 
 
         ## in the azure phi-repo they use these but you need to install flash-attn
         # flash_attn=True, 
