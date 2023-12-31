@@ -3,7 +3,7 @@ import lightning.pytorch as pl
 import torch
 import torch.nn.functional as F
 from torchmetrics.functional import accuracy
-
+from torch import optim
 
 class PLBase(pl.LightningModule):
     """
@@ -46,13 +46,22 @@ class PLBase(pl.LightningModule):
     def test_step(self, batch, batch_idx=0, dataloader_idx=0):
         return self._step(batch, batch_idx, stage='test')
     
-    def configure_optimizers(self):
-        """use ranger21 from  https://github.com/kozistr/pytorch_optimizer"""
-        optimizer = Ranger21(
-            self.parameters(),
-            lr=self.hparams.lr,
-            weight_decay=self.hparams.weight_decay,       
-            num_iterations=self.hparams.epoch_steps * self.hparams.max_epochs,
-        )
-        return optimizer
+    # def configure_optimizers(self):
+    #     """use ranger21 from  https://github.com/kozistr/pytorch_optimizer"""
+    #     optimizer = Ranger21(
+    #         self.parameters(),
+    #         lr=self.hparams.lr,
+    #         weight_decay=self.hparams.weight_decay,       
+    #         num_iterations=self.hparams.epoch_steps * self.hparams.max_epochs,
+    #     )
+    #     return optimizer
     
+    def configure_optimizers(self):
+        """simple vanilla torch optim"""
+        optimizer = optim.AdamW(self.parameters(), lr=self.hparams.lr, weight_decay=self.hparams.weight_decay)
+        # https://lightning.ai/docs/pytorch/stable/common/precision_intermediate.html#quantization-via-bitsandbytes
+        # optimizer = bnb.optim.AdamW8bit(self.parameters(), lr=self.hparams.lr, weight_decay=self.hparams.weight_decay)
+        lr_scheduler = optim.lr_scheduler.OneCycleLR(
+            optimizer, self.hparams.lr, total_steps=self.total_steps
+        )
+        return [optimizer], [lr_scheduler]

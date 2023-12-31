@@ -38,12 +38,14 @@ def rename_pl_test_results(rs, ks=["train", "val", "test"]):
     }
     return rs
 
-def plot_hist(df_hist):
+def plot_hist(df_hist, allowlist=None, logy=False):
     """
     assuming lightning logs metrics as train/loss etc, lets plot groups of suffixes together and ignore indexes like "step"
     """
     suffixes = list(set([c.split('/')[-1] for c in df_hist.columns if '/' in c]))
     for suffix in suffixes:
-        df_hist[[c for c in df_hist.columns if c.endswith(suffix) and '/' in c]].plot(title=suffix, style='.')
+        if allowlist and suffix not in allowlist:
+            continue
+        df_hist[[c for c in df_hist.columns if c.endswith(suffix) and '/' in c]].plot(title=suffix, style='.', logy=logy)
         plt.title(suffix)   
         plt.show()

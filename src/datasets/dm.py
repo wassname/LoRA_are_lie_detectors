@@ -24,6 +24,7 @@ class DeceptionDataModule(pl.LightningDataModule):
     def __init__(
         self,
         ds: Dataset,
+        num_workers: int = 0,
         batch_size: int = 32,
     ):
         super().__init__()
@@ -32,7 +33,6 @@ class DeceptionDataModule(pl.LightningDataModule):
         self.setup("train")
 
     def setup(self, stage: str):
-        # h = self.hparams
         n = len(self.ds)
         self.splits = {
             "train": (0, int(n * 0.5)),
@@ -46,8 +46,9 @@ class DeceptionDataModule(pl.LightningDataModule):
         }
 
     def create_dataloader(self, ds, shuffle=False):
+        h = self.hparams
         return DataLoader(
-            ds, batch_size=self.hparams.batch_size, drop_last=False, shuffle=shuffle
+            ds, batch_size=h.batch_size, drop_last=False, shuffle=shuffle, num_workers=h.num_workers
         )
 
     def train_dataloader(self):
@@ -58,3 +59,6 @@ class DeceptionDataModule(pl.LightningDataModule):
 
     def test_dataloader(self):
         return self.create_dataloader(self.datasets["test"])
+    
+    def all_dataloader(self):
+        return DataLoader(self.ds, batch_size=self.hparams.batch_size, drop_last=False, shuffle=False)

@@ -560,6 +560,53 @@ with hard 16 I get inf, so I proboly need the lroa parts to be 32.
 TODO
 - [x] fix IA3
 - [ ] unlikelihood loss LUL
-- [ ] AEC
-  - [ ] extract importance matrix from adapter
-  - [ ] handle new formats
+- [x] AEC
+  - [x] extract importance matrix from adapter
+  - [x] handle new formats
+
+
+# 2023-12-31 08:47:05
+
+Hmm I'm using a adapter that doesn't do much. I may need to use out_proj as well or instead. 
+- [ ] In fact I could try a logistic regression on all activations and see which are the most usefull!!! but none are working. hmm
+- [ ] LUL loss
+- [ ] I could try a full bnb notebook, that uses manual training loop. See if I can get batch 2
+- [x] by VAE dl is very slow, hmm. oh it's just the dataset, solved with workers>0
+- [ ] IMPORTANCE MATRIX!!
+
+
+without with_torch is it 3x faster
+
+
+open questions:
+- whats the best representation? I'm thinking no one knows, and it's deeply non linear
+- 
+
+
+experiment, collect EVERYTHING. Save to disc regularly. Try it ALL for interpret.
+- also collect features? Like diff. Mult.
+
+
+idea: importancem matrix and logistic regression? E.g. top k?
+
+Why does my importance matrixn ot match?? in probes nb? But it seems fine in nb 11? Prob bc in 11 we decimate which makes them seem the same
+
+importance_matrix.shape
+torch.Size([16, 17920])
+torch.Size([1336, 16, 17918, 2])
+
+So it looks like we diffed the neurons instead as the layers are the same...
+yup because I said n, not dim, and it did the last dim.
+
+
+# 2023-12-31 14:45:10 
+
+UPTO
+- I'm trying the importance matrix experiment. Still need to work out the best way to do an importance matrix? Take the top std? Or top and bottom?
+- and the VAE, but that can wait
+- I just fixed a bug where I was diffing by neurons (nonsense) so I need to recollect hidden states
+- I still am confused why IA3 hardly train it to lie, so I an now trying the opposite KLDiv loss. And I might try ULU loss
+- 
+
+
+Hypothesis: an adapters residuals and importance matrix will help interpret hidden states. Experiment: LR on residual * importance matrix
