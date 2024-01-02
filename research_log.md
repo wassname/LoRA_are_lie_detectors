@@ -610,3 +610,14 @@ UPTO
 
 
 Hypothesis: an adapters residuals and importance matrix will help interpret hidden states. Experiment: LR on residual * importance matrix
+
+# 2024-01-01 10:00:49
+
+
+UPTO
+- [x] I just fixed a bug where I was diffing by neurons (nonsense) so I need to recollect hidden states
+- [ ] I'm trying the importance matrix experiment. Still need to work out the best way to do an importance matrix? Take the top std? Or top and bottom?
+- [ ] and the VAE, but that can wait
+- [ ] I still am confused why IA3 hardly train it to lie, so I an now trying the opposite KLDiv loss. And I might try ULU loss.
+- [ ] :bug: my known lie doesn't make sense anymore? Well truth is when examples of truth are given (and maybe it's asked to tell the truth?) I would need to analyze this seperatly, but getting say N tokens. And trying differen't combinatiuons of system prompt, and n-shot examples
+- [ ] :bug: fix the intervention thing in the model training nb

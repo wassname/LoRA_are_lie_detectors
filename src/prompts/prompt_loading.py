@@ -332,14 +332,15 @@ def load_preproc_datasets(dataset_names: List[str], tokenizer: PreTrainedTokeniz
     return ds_tokens
 
 
-def load_preproc_dataset(ds_name: str, tokenizer: PreTrainedTokenizerBase, N:int, prompt_format:str = None, split_type:str="train", seed=42, num_shots=1, max_length=999) -> Dataset:
-    rng = Random(seed)
+def load_preproc_dataset(ds_name: str, tokenizer: PreTrainedTokenizerBase, N:int, prompt_format:str = None, split_type:str="train", seed=42, num_shots=1, max_length=999, sys_instructions=default_sys_instructions) -> Dataset:
+    # rng = Random(seed)
     ds_prompts = Dataset.from_generator(
         load_prompts,
         gen_kwargs=dict(
             ds_string=ds_name,
             num_shots=num_shots,
             split_type=split_type,
+            sys_instructions=sys_instructions,
             # template_path=template_path,
             seed=seed,
             N=N*3,
