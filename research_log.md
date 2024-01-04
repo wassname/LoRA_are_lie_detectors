@@ -621,3 +621,30 @@ UPTO
 - [ ] I still am confused why IA3 hardly train it to lie, so I an now trying the opposite KLDiv loss. And I might try ULU loss.
 - [ ] :bug: my known lie doesn't make sense anymore? Well truth is when examples of truth are given (and maybe it's asked to tell the truth?) I would need to analyze this seperatly, but getting say N tokens. And trying differen't combinatiuons of system prompt, and n-shot examples
 - [ ] :bug: fix the intervention thing in the model training nb
+- [ ] in PEFT/LORA they use out_project  and gc2 as well! "phi": ["Wqkv", "out_proj", "fc1", "fc2"], maybe try those to
+
+
+use the importance matrix in the VAE! But first make sure the feature are usefull
+
+# 2024-01-03 08:16:19
+
+Cleaning probe code. Need to rerun 06b. And try diff importance matrix with LR
+
+
+With no importance matrix: 17 mins, and 0.64 auroc
+w matrix 10 min 0.6731
+top 1%, 10 sec and  0.64
+abs top 1% 11s 0.66
+top 1% abs, just Wqkv 0.646
+top 1% abs, just fc1 0.66
+
+Findings 
+**So fc1 better**
+**importance matrix helps**
+**abs** is better
+
+top abs 20%. runtime=1.5min, auc= 0.62
+top 3%, 0.64
+
+TODO try pl bolt on lr
+try my own pl methods...

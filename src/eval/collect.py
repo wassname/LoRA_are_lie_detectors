@@ -10,7 +10,7 @@ from loguru import logger
 from baukit.nethook import TraceDict
 
 from src.helpers.torch_helpers import clear_mem, detachcpu, recursive_copy
-from src.models.pl_lora_ft import postprocess_result
+from src.llms.pl_lora_ft import postprocess_result
 from src.config import root_folder
 
 @torch.no_grad

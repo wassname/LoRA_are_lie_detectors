@@ -1,25 +1,27 @@
 import pandas as pd 
 import numpy as np
 
-def filter_ds_to_known(ds1, verbose=True):
+def filter_ds_to_known(ds1, verbose=True, true_col='truth'):
     """filter the dataset to only those where the model knows the answer"""
     
     # first get the rows where it answered the question correctly
     df = ds2df(ds1).rename(columns=lambda x: x.replace('_base', ''))
-    d = df.query('sys_instr_name=="truth"').set_index("example_i")
-    m1 = (d.binary_ans>0.5)==d.label_true
-    known_indices = d[m1].index
-    known_rows = df['example_i'].isin(known_indices)
-    known_rows_i = df[known_rows].index
+    d1 = filter_df_to_known(df, verbose=verbose, true_col=true_col)
+    known_rows_i = d1.index
+    # d = df.query(f'sys_instr_name=="{true_col}"').set_index("example_i")
+    # m1 = (d.binary_ans>0.5)==d.label_true
+    # known_indices = d[m1].index
+    # known_rows = df['example_i'].isin(known_indices)
+    # known_rows_i = df[known_rows].index
     
-    if verbose: print(f"select rows are {m1.mean():2.2%} based on knowledge")
+    # if verbose: print(f"select rows are {m1.mean():2.2%} based on knowledge")
     return ds1.select(known_rows_i)
 
-def filter_df_to_known(df, verbose=True):
+def filter_df_to_known(df, verbose=True, true_col='truth'):
     """filter the dataset to only those where the model knows the answer"""
     
     # first get the rows where it answered the question correctly
-    d = df.query('sys_instr_name=="truth"').set_index("example_i")
+    d = df.query(f'sys_instr_name=="{true_col}"').set_index("example_i")
     m1 = (d.binary_ans>0.5)==d.label_true
     known_indices = d[m1].index
     known_rows = df['example_i'].isin(known_indices).copy()
@@ -104,11 +106,11 @@ def qc_dsdf(df, verbose=0):
         acc = roc_auc_score(d.label_instructed, d['ans'])
 
         # assert np.isfinite(acc)
-        if verbose: print(f"\tknown_lie_auroc=\t{acc:2.2%} [N={len(d)}]      - when the model tries to lie and knows the answer... we get this auroc")
         if acc<=0.01:
             if verbose: print(f"WARNING: no known lies {acc}")
         # assert acc>0.01, f"no known lies={acc}"
         res['known_lie_auroc'] = acc
+        if verbose: print(f"\tknown_lie_auroc=\t{acc:2.2%} [N={len(d)}]      - when the model tries to lie and knows the answer... we get this auroc")
 
     # check choice coverage
     mean_prob = df['choice_probs'].mean()

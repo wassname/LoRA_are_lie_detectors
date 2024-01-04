@@ -3,9 +3,9 @@ from torch.utils.data import DataLoader
 import pytorch_lightning as pl
 
 
-class DeceptionDataModule(pl.LightningDataModule):
+class ActivationDataModule(pl.LightningDataModule):
     """
-    Pass in an on-disc dataset. Should have only the columns you want to return as a dict (e.g. X and y). You can prepare the dataset as a streaming map like so
+    Pass in an on-disc dataset on hmodel activations. Should have only the columns you want to return as a dict (e.g. X and y). You can prepare the dataset as a streaming map like so
 
     ```py
     def ds2xy(row):

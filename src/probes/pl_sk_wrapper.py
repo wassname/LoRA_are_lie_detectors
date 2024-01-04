@@ -9,8 +9,10 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader, TensorDataset
 from torch import optim
 from torchmetrics.functional import accuracy, auroc
+from torchmetrics.functional.classification import binary_auroc
 import pandas as pd
 import numpy as np
+from src.helpers.lightning import read_metrics_csv, plot_hist
 
 class PLSKBase(pl.LightningModule):
     """
@@ -38,7 +40,10 @@ class PLSKBase(pl.LightningModule):
         loss = F.binary_cross_entropy_with_logits(logits, y.float())
         
         self.log(f"{stage}/acc", accuracy(y_cls, y, "binary"), on_epoch=True, on_step=False)
-        self.log(f"{stage}/auroc", auroc(y_probs, y, "binary"), on_epoch=True, on_step=False)
+
+        # FIXME seems broken?
+        self.log(f"{stage}/auroc", binary_auroc(y_probs, y), on_epoch=True, on_step=False)
+
         self.log(f"{stage}/loss", loss, on_epoch=True, on_step=True, prog_bar=True)
         self.log(f"{stage}/n", len(y), on_epoch=True, on_step=False, reduce_fx=torch.sum)
         return loss
@@ -64,15 +69,14 @@ class PLSKBase(pl.LightningModule):
         return [optimizer], [lr_scheduler]
     
 
-def read_metrics_csv(metrics_file_path):
-    df_hist = pd.read_csv(metrics_file_path)
-    df_hist["epoch"] = df_hist["epoch"].ffill()
-    df_histe = df_hist.set_index("epoch").groupby("epoch").last().ffill().bfill()
-    return df_histe
+
 
 class PLSKWrapper:
+    """
+    Wraps a lightning model into a sklearn-like interface (with fit and predict_proba)
+    """
 
-    def __init__(self, pl_model, max_epochs=20, batch_size=32, verbose=False):
+    def __init__(self, pl_model: pl.LightningModule, max_epochs=20, batch_size=32, verbose=False):
         self.max_epochs = max_epochs
 
         self.pl_model = pl_model
@@ -96,14 +100,9 @@ class PLSKWrapper:
         self.trainer.fit(model=self.pl_model, train_dataloaders=dl_train, val_dataloaders=dl_val)
         
 
-        self.df_hist = read_metrics_csv(self.trainer.logger.experiment.metrics_file_path)
+        self.df_hist, _ = read_metrics_csv(self.trainer.logger.experiment.metrics_file_path)
         if self.verbose:
-            suffixes = sorted(set([c.split('/')[-1] for c in self.df_hist.columns]))
-            for s in suffixes:
-                if len(s)>1:
-                    d = self.df_hist[[c for c in self.df_hist.columns if c.endswith(s)]]
-                    if len(d):
-                        d.plot(title=s)
+            plot_hist(self.df_hist, ['loss', 'acc', 'auroc'])
         return self
 
     def predict_proba(self, X):

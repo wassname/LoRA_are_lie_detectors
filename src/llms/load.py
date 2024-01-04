@@ -10,7 +10,7 @@ import torch
 from loguru import logger
 from typing import Tuple
 import peft
-from src.models.phi.model_phi import PhiForCausalLMWHS
+from src.llms.phi.model_phi import PhiForCausalLMWHS
 
 def verbose_change_param(tokenizer, path, after):
     

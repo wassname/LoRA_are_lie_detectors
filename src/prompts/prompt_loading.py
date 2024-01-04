@@ -28,7 +28,7 @@ from loguru import logger
 from src.helpers.ds import shuffle_dataset_by
 from src.helpers.scores import row_choice_ids
 from src.config import ExtractConfig
-from src.models.load import verbose_change_param, AutoConfig, AutoTokenizer, AutoModelForCausalLM, PreTrainedTokenizerBase
+from src.llms.load import verbose_change_param, AutoConfig, AutoTokenizer, AutoModelForCausalLM, PreTrainedTokenizerBase
 
 
 # Local path to the folder containing the templates

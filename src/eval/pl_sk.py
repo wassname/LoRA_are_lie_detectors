@@ -8,7 +8,7 @@ from src.helpers.ds import train_test_split_ds
 import torch
 from sklearn.metrics import roc_auc_score, accuracy_score
 from IPython.display import display
-
+from src.helpers.torch_helpers import clear_mem, detachcpu, recursive_copy, switch
 import dataclasses
 from typing import Callable
 from src.probes.utils import postproc
@@ -17,10 +17,11 @@ from src.helpers.ds import train_test_split_ds
 from sklearn.metrics import roc_auc_score, accuracy_score
 from IPython.display import display
 from typing import Tuple
+from einops import rearrange
 from torch import Tensor
+from jaxtyping import Float
 
 
-# FIXME, I should subclass instead of passing around functions...
 
 
 def analyze_dfres(df_res, insample_datasets, trainval_datasets):
@@ -32,8 +33,14 @@ def analyze_dfres(df_res, insample_datasets, trainval_datasets):
         in_train = n in trainval_datasets
 
 
-        roc_auc_adapter = roc_auc_score(g['label_true_adapt2'], g['binary_ans_adapt2'])
-        roc_auc_base = roc_auc_score(g['label_true_base2'], g['binary_ans_base2'])
+
+        if 'label_true_adapt2' in g:
+            # this is an artifact of flipping rows 
+            roc_auc_adapter = roc_auc_score(g['label_true_adapt2'], g['binary_ans_adapt2'])
+            roc_auc_base = roc_auc_score(g['label_true_base2'], g['binary_ans_base2'])
+        else:
+            roc_auc_adapter = roc_auc_score(g['label_true_adapt'], g['binary_ans_adapt'])
+            roc_auc_base = roc_auc_score(g['label_true_base'], g['binary_ans_base'])
 
 
         s= pd.Series(dict(
@@ -54,6 +61,13 @@ def analyze_dfres(df_res, insample_datasets, trainval_datasets):
         data[n]=s
 
     df = pd.DataFrame(data).T.sort_values('improvement', ascending=False)
+
+    df_ood = df_res.query('ds_string_base not in @insample_datasets')
+    roc_auc = roc_auc_score(df_ood['y'], df_ood['y_prob'])
+
+    print(f"⭐ main_metric: {roc_auc:.3f} ⭐ roc_auc for {len(df_ood)} OOD samples")
+
+    # print(
     # df['better'] = df['roc_auc']-df[['roc_auc_adapter', 'roc_auc_base']].values.max(1)
     display(df)
     return df
@@ -74,9 +88,39 @@ class SKEvaluator:
     ds_test: Dataset
 
 
+    "skip first N layers"
+    skip: int = 0
+
+    "stride the features"
+    stride: int = 1
+
+    "decimate the features"
+    decimate: int = 1
+    
+    "optional importance matrix to weight the features"
+    importance_matrix: Float[Tensor, 'layer features'] = None
+
+    layers_names: tuple = ('fc1', 'Wqkv')
+
+
     def ds2xy(self, ds: Dataset) -> Tuple[Tensor, Tensor]:
         """function which will transform a dataset into x and y."""
-        raise NotImplementedError
+        data = []
+        for layer in self.layers_names:
+            # Stack the base and adapter representations as a 4th dim
+            X1 = [ds[f'end_residual_{layer}_base'], ds[f'end_residual_{layer}_adapt']]
+            X1 = rearrange(X1, 'versions b l f  -> b l f versions')
+            data.append(X1)
+        
+        # concat layers
+        # x = rearrange(data, 'parts b l f v -> b l (parts f) v')
+        x = torch.concat(data, dim=2)
+
+        if self.importance_matrix is not None:
+            x = x * self.importance_matrix[None, :, :, None]**2
+        x = x[:, self.skip::self.stride, ::self.decimate] 
+        y = self.ds2proxy(ds)
+        return x, y
 
     
     def ds2proxy(self, ds: Dataset):
@@ -89,7 +133,7 @@ class SKEvaluator:
         """
         will transform a proxy label back into the ground truth label, can be noop
         """
-        raise NotImplementedError
+        return proxy
 
 
     def ds2dfres(self, model, scaler, ds_test, verbose=True):
@@ -136,6 +180,8 @@ class SKEvaluator:
         df_res1 = self.ds2dfres(model, scaler, ds_val, False)
         df_res2 = self.ds2dfres(model, scaler, self.ds_test, False)
         df_res = pd.concat([df_res1, df_res2])
+
+
         return df_res
     
 
@@ -143,23 +189,66 @@ class SKEvaluator:
 @dataclasses.dataclass(kw_only=True)
 class PlainTruthEval(SKEvaluator):
 
-    importance_matrix: Tensor
-
-    def ds2xy(self, ds: Dataset) -> Tuple[Tensor, Tensor]:
-        X1 = torch.stack([ds['end_residual_fc1_base'], ds['end_residual_fc1_adapt']], dim=-1)
-        X2 = torch.stack([ds['end_residual_Wqkv_base'], ds['end_residual_Wqkv_adapt']], dim=-1)
-        x = torch.concat([X1, X2], dim=2)
-        x = x * self.importance_matrix[None, :, :, None]**2
-        y = self.ds2proxy(ds)
-        return x, y
-
     def ds2proxy(self, ds: Dataset):
         """label: whether the model told the truth"""
         ans = ds["binary_ans_base"] > 0.5
         labels_true_ans = ds["label_true_base"] == ans
         return labels_true_ans
 
-    def proxy2label(self, proxy, ds: Dataset):
-        return proxy
+    
+
+@dataclasses.dataclass(kw_only=True)
+class PlainObeyEval(SKEvaluator):
+
+    def ds2proxy(self, ds: Dataset):
+        """label: whether the model obeyed the instruction to lie"""
+        label_instructed = ds["label_true_base"] ^ ds["instructed_to_lie_base"]
+        ans = ds["binary_ans_base"] > 0.5
+        labels_untruth = label_instructed == ans
+        return labels_untruth
 
     
+
+@dataclasses.dataclass(kw_only=True)
+class RankingTruthEval(SKEvaluator):
+
+    def ds2proxy(self, ds: Dataset):
+        """proxy label whether the adapter or the base model were more truthful."""
+        base_more_truthful =  ds['correct_truth_telling_base'] > ds['correct_truth_telling_adapt']
+        return base_more_truthful
+
+    def proxy2label(self, base_more_truthful, ds: Dataset):
+        # note if we know which model is more truthful, and it's a binary choice, we can take the choice that is in that direction as the truth
+        base_more_positive = (ds['binary_ans_base'] > ds['binary_ans_adapt']) * 1.0
+        return switch(base_more_positive, base_more_truthful)
+    
+@dataclasses.dataclass(kw_only=True)
+class DistTruthEval(SKEvaluator):
+    """This uses a proxy label, the distance between the predictions and the ground truth.
+
+    we set 0.5 as the center for compatiblity with metrics."""
+
+    def ds2proxy(self, ds: Dataset):
+        """proxy label whether the adapter or the base model were more truthful."""
+        base_more_truthful =  ds['correct_truth_telling_base'] - ds['correct_truth_telling_adapt'] + 0.5
+        return base_more_truthful
+
+    def proxy2label(self, base_more_truthful, ds: Dataset):
+        # note if we know which model is more truthful, and it's a binary choice, we can take the choice that is in that direction as the truth
+        base_more_truthful = base_more_truthful - 0.5
+        base_more_positive = (ds['binary_ans_base'] > ds['binary_ans_adapt']) * 1.0
+        y = base_more_truthful * base_more_positive + (1-base_more_positive) * (-base_more_truthful)
+        return y > 0.
+
+
+@dataclasses.dataclass(kw_only=True)
+class RankingObeyEval(SKEvaluator):
+
+    def ds2proxy(self, ds: Dataset):
+        """proxy label whether the adapter or the base model were more instruction following."""
+        base_more_obediant =  ds['correct_instruction_following_base'] > ds['correct_instruction_following_adapt']
+        return base_more_obediant
+
+    def proxy2label(self, base_more_obediant, ds: Dataset):
+        base_more_positive = (ds['binary_ans_base'] > ds['binary_ans_adapt']) * 1.0
+        return switch(base_more_positive, base_more_obediant)
