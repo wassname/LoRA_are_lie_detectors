@@ -9,7 +9,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 from einops import rearrange
-from src.helpers.sklearn_lightning import PLSKWrapper, PLSKBase
+from src.probes.pl_sk_wrapper import PLSKWrapper, PLSKBase
 from torchmetrics.functional import accuracy, auroc
 
 def ccs_loss(p_neg, p_pos):

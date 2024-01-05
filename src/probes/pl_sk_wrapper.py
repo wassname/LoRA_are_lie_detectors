@@ -14,6 +14,15 @@ import pandas as pd
 import numpy as np
 from src.helpers.lightning import read_metrics_csv, plot_hist
 
+
+def flip(X, y):
+    """flips X and y"""
+    assert X.shape[-1]==2
+    X = torch.flip(X, (-1,))
+    dtype = y.dtype
+    y = (1-(y*1.0)).to(dtype)
+    return X, y
+
 class PLSKBase(pl.LightningModule):
     """
     Base pytorch lightning module, subclass to add model
@@ -23,12 +32,17 @@ class PLSKBase(pl.LightningModule):
         self.model = None # subclasses must add this
         self.total_steps = epoch_steps * max_epochs
         self.save_hyperparameters()
+
         
     def forward(self, x):
         return self.model(x)
         
     def _step(self, batch, batch_idx, stage='train'):
         x0, y = batch
+
+        if stage=='train':
+            if batch_idx%2==0:
+                x0, y = flip(x0, y)
 
         logits = self(x0)
         y_probs = F.sigmoid(logits)
@@ -42,7 +56,7 @@ class PLSKBase(pl.LightningModule):
         self.log(f"{stage}/acc", accuracy(y_cls, y, "binary"), on_epoch=True, on_step=False)
 
         # FIXME seems broken?
-        self.log(f"{stage}/auroc", binary_auroc(y_probs, y), on_epoch=True, on_step=False)
+        self.log(f"{stage}/auroc", binary_auroc(y_probs, y*1), on_epoch=True, on_step=False)
 
         self.log(f"{stage}/loss", loss, on_epoch=True, on_step=True, prog_bar=True)
         self.log(f"{stage}/n", len(y), on_epoch=True, on_step=False, reduce_fx=torch.sum)

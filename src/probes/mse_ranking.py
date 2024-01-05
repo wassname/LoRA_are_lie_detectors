@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from src.helpers.sklearn_lightning import PLSKWrapper, PLSKBase
+from src.probes.pl_sk_wrapper import PLSKWrapper, PLSKBase
 from torchmetrics.functional import accuracy, auroc
 
 

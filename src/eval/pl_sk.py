@@ -197,17 +197,21 @@ class PlainTruthEval(SKEvaluator):
 
     
 
-@dataclasses.dataclass(kw_only=True)
-class PlainObeyEval(SKEvaluator):
+# @dataclasses.dataclass(kw_only=True)
+# class PlainObeyEval(SKEvaluator):
 
-    def ds2proxy(self, ds: Dataset):
-        """label: whether the model obeyed the instruction to lie"""
-        label_instructed = ds["label_true_base"] ^ ds["instructed_to_lie_base"]
-        ans = ds["binary_ans_base"] > 0.5
-        labels_untruth = label_instructed == ans
-        return labels_untruth
+#     def ds2proxy(self, ds: Dataset):
+#         """label: whether the model obeyed the instruction to lie"""
+#         label_instructed = ds["label_true_base"] ^ ds["instructed_to_lie_base"]
+#         ans = ds["binary_ans_base"] > 0.5
+#         label_base_obedient = label_instructed == ans
+#         return label_base_obedient
 
-    
+#     def proxy2label(self, base_obedient, ds: Dataset):
+        # FIXME
+#         # note if we know which model is more truthful, and it's a binary choice, we can take the choice that is in that direction as the truth
+#         base_more_positive = (ds['binary_ans_base'] > ds['binary_ans_adapt']) * 1.0
+#         return switch(base_more_positive, base_more_truthful)
 
 @dataclasses.dataclass(kw_only=True)
 class RankingTruthEval(SKEvaluator):
@@ -241,14 +245,14 @@ class DistTruthEval(SKEvaluator):
         return y > 0.
 
 
-@dataclasses.dataclass(kw_only=True)
-class RankingObeyEval(SKEvaluator):
+# @dataclasses.dataclass(kw_only=True)
+# class RankingObeyEval(SKEvaluator):
 
-    def ds2proxy(self, ds: Dataset):
-        """proxy label whether the adapter or the base model were more instruction following."""
-        base_more_obediant =  ds['correct_instruction_following_base'] > ds['correct_instruction_following_adapt']
-        return base_more_obediant
+#     def ds2proxy(self, ds: Dataset):
+#         """proxy label whether the adapter or the base model were more instruction following."""
+#         base_more_obediant =  ds['correct_instruction_following_base'] > ds['correct_instruction_following_adapt']
+#         return base_more_obediant
 
-    def proxy2label(self, base_more_obediant, ds: Dataset):
-        base_more_positive = (ds['binary_ans_base'] > ds['binary_ans_adapt']) * 1.0
-        return switch(base_more_positive, base_more_obediant)
+#     def proxy2label(self, base_more_obediant, ds: Dataset):
+#         base_more_positive = (ds['binary_ans_base'] > ds['binary_ans_adapt']) * 1.0
+#         return switch(base_more_positive, base_more_obediant)

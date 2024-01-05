@@ -648,3 +648,24 @@ top 3%, 0.64
 
 TODO try pl bolt on lr
 try my own pl methods...
+
+# 2024-01-04 15:32:50
+
+I need to flip during training. Easiest to just flip the last dim of y, and y=1-y
+
+
+- [x] run 06b
+- [x] debug 07 compare probes
+  - [x] importance matrix... it helps but not much
+  - [ ] experiment with diff layers?
+- [ ] VAE with importance matrix?
+  - [ ] how to make tractable?
+- [ ] codebook
+- [ ] grant
+
+
+I can just repurpose other codebook code? https://lilianweng.github.io/posts/2018-08-12-vae/#vq-vae-and-vq-vae-2 prob need 1d tho
+- openAI Jukebox uses them for audio  https://old.reddit.com/r/MachineLearning/comments/109yuvi/d_has_any_work_been_done_on_vqvae_language_models/
+- Sounds like HuBERT and other MLMs used for ASR pretraining. Look for seq2seq work in the world of TTS and ASR.
+- DALL-E additionally uses VQ-VAE[4] to operate this model, which was used only for texts, and for images as well.
+- https://github.com/ML4ITS/TimeVQVAE

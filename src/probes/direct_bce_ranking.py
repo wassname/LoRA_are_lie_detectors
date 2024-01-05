@@ -32,6 +32,8 @@ class HSModel3d(nn.Module):
             nn.Linear(n, 1),  
         )
 
+        self.head[-1].bias.data.fill_(0.5)
+
     def forward(self, x):
         x = x.float()
         if x.ndim==4:

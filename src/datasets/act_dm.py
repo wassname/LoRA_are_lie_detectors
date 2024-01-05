@@ -1,7 +1,8 @@
 from datasets import Dataset
 from torch.utils.data import DataLoader
 import pytorch_lightning as pl
-
+import torch
+from src.helpers.shared_dataset import SharedDataset
 
 class ActivationDataModule(pl.LightningDataModule):
     """
@@ -24,6 +25,7 @@ class ActivationDataModule(pl.LightningDataModule):
     def __init__(
         self,
         ds: Dataset,
+        name: str,
         num_workers: int = 0,
         batch_size: int = 32,
     ):
@@ -45,20 +47,28 @@ class ActivationDataModule(pl.LightningDataModule):
             for key, (start, end) in self.splits.items()
         }
 
-    def create_dataloader(self, ds, shuffle=False):
+    def create_dataloader(self, name, shuffle=False):
         h = self.hparams
+        ds = self.datasets[name]
+        tds = torch.utils.data.TensorDataset(ds['X'], ds['y'])
+        stds = SharedDataset(tds, f"{self.hparams.name}_{name}")
+        batches = len(ds)//h.batch_size
+        num_workers=min(h.num_workers, batches)
         return DataLoader(
-            ds, batch_size=h.batch_size, drop_last=False, shuffle=shuffle, num_workers=h.num_workers
+            stds, batch_size=h.batch_size, drop_last=False, shuffle=shuffle, num_workers=num_workers
         )
 
     def train_dataloader(self):
-        return self.create_dataloader(self.datasets["train"], shuffle=True)
+        return self.create_dataloader("train", shuffle=True)
 
     def val_dataloader(self):
-        return self.create_dataloader(self.datasets["val"])
+        return self.create_dataloader("val")
 
     def test_dataloader(self):
-        return self.create_dataloader(self.datasets["test"])
+        return self.create_dataloader("test")
     
     def all_dataloader(self):
-        return DataLoader(self.ds, batch_size=self.hparams.batch_size, drop_last=False, shuffle=False)
+        h = self.hparams
+        tds = torch.utils.data.TensorDataset(self.ds['X'], self.ds['y'])
+        stds = SharedDataset(tds, f"{self.hparams.name}_all")
+        return DataLoader(stds, batch_size=self.hparams.batch_size, drop_last=False, shuffle=False, num_workers=h.num_workers)

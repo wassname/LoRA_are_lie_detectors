@@ -1,7 +1,7 @@
 import torch
 import gc
 import copy
-
+import numpy as np
 from jaxtyping import Float, Int
 from torch import Tensor
 
@@ -66,3 +66,13 @@ def batch_to_device(b, device=None):
         return type(b)([batch_to_device(v, device=device) for v in b])
     else:
         return b
+
+def shape_of_anything(v):
+    if isinstance(v, (Tensor, np.ndarray)):
+        return v.shape
+    elif isinstance(v, dict):
+        return {k:shape_of_anything(v) for k,v in v.items()}
+    elif isinstance(v, list):
+        return len(v)
+    else:
+        return 1
