@@ -669,3 +669,15 @@ I can just repurpose other codebook code? https://lilianweng.github.io/posts/201
 - Sounds like HuBERT and other MLMs used for ASR pretraining. Look for seq2seq work in the world of TTS and ASR.
 - DALL-E additionally uses VQ-VAE[4] to operate this model, which was used only for texts, and for images as well.
 - https://github.com/ML4ITS/TimeVQVAE
+
+
+This VQ-VAE is 2d and pl https://github.dev/ML4ITS/TimeVQVAE
+takes in x,y where
+> :param x: input time series (B, C, L)
+- but it does things like convert to freq
+
+
+What's the best way to represent the data? Lets say we have
+
+- [Batch, Layers, Activations] for layers of differen't sizes.
+- 

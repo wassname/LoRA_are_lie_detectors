@@ -34,7 +34,7 @@ class ActivationDataModule(pl.LightningDataModule):
         self.ds = ds.with_format("torch")
         self.setup("train")
 
-    def setup(self, stage: str):
+    def setup(self, stage: str = "train"):
         n = len(self.ds)
         self.splits = {
             "train": (0, int(n * 0.5)),
@@ -49,13 +49,16 @@ class ActivationDataModule(pl.LightningDataModule):
 
     def create_dataloader(self, name, shuffle=False):
         h = self.hparams
-        ds = self.datasets[name]
-        tds = torch.utils.data.TensorDataset(ds['X'], ds['y'])
+        # 4x faster if we make it a tensor ourselves
+        ds = self.datasets[name].with_format(None)
+        tds = torch.utils.data.TensorDataset(
+            torch.FloatTensor(ds['X']), torch.FloatTensor(ds['y']))
         stds = SharedDataset(tds, f"{self.hparams.name}_{name}")
         batches = len(ds)//h.batch_size
         num_workers=min(h.num_workers, batches)
         return DataLoader(
-            stds, batch_size=h.batch_size, drop_last=False, shuffle=shuffle, num_workers=num_workers
+            stds, batch_size=h.batch_size, drop_last=False, shuffle=shuffle, num_workers=num_workers,
+            timeout=20, persistent_workers=True,
         )
 
     def train_dataloader(self):

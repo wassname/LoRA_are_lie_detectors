@@ -19,6 +19,8 @@ def filter_ds_to_known(ds1, verbose=True, true_col='truth'):
 
 def filter_df_to_known(df, verbose=True, true_col='truth'):
     """filter the dataset to only those where the model knows the answer"""
+    sys_inst = df['sys_instr_name'].unique()
+    assert true_col in sys_inst, f"true_col={true_col} not in {sys_inst}"
     
     # first get the rows where it answered the question correctly
     d = df.query(f'sys_instr_name=="{true_col}"').set_index("example_i")

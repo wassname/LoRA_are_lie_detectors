@@ -1,4 +1,4 @@
-# https://github.com/jotaf98/shareddataset/blob/master/shareddataset.py
+# from https://github.com/jotaf98/shareddataset/blob/master/shareddataset.py
 from multiprocessing import shared_memory
 import torch, itertools
 from torch.utils.data import Dataset
@@ -28,6 +28,7 @@ class SharedDataset(Dataset):
   Author: Joao F. Henriques
   """
   def __init__(self, dataset, shared_mem_name):
+    print(f'making shared dataset with unique name {shared_mem_name}')
     self.dataset = dataset
     self.shared_mem_name = shared_mem_name
     self._initialize()
