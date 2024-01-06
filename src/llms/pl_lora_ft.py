@@ -73,9 +73,9 @@ def postprocess_result(input: dict, ret: TraceDict, output: ModelOutput, get_res
             # HACK: we will assume they are all shaped [batch, tokens, hidden]
             activation = rearrange(activations[k], 'l b t h -> b l t h').detach().cpu().float()
             end_activation = activation[:, :, -1, :]
-            # Diff normally removes the first layer. Let's keep it
-            end_residual = end_activation.diff(dim=1, prepend=torch.zeros_like(end_activation)[:, :1])
-            out[f'end_residual_{k}'] = end_residual
+            # # Diff normally removes the first layer. Let's keep it... but only when using something that has the residual added in
+            # end_residual = end_activation.diff(dim=1, prepend=torch.zeros_like(end_activation)[:, :1])
+            out[f'end_residual_{k}'] = end_activation
 
         # ret = {k: v.detach().cpu().float() for k, v in ret.items()}
         

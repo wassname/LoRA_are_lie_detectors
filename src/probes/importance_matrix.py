@@ -36,7 +36,7 @@ def get_importance_matrix(saved_adaptop_file, layers=['fc1', 'Wqkv']):
     importance_matrix = importance_matrix + 1
 
     # square to make it positive
-    return importance_matrix.clamp(1e-2, None)
+    return importance_matrix.abs().clamp(0, None) ** 3
 
 
 # f = "/media/wassname/SGIronWolf/projects5/elk/sgd_probes_are_lie_detectors/notebooks/lightning_logs/version_276/checkpoint_last/adapter_model.safetensors"

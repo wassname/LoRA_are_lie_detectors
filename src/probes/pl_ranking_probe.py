@@ -117,8 +117,8 @@ class LinBnDrop(nn.Module):
     
 
 class PLConvProbeLinear(PLRankingBase):
-    def __init__(self, c_in, epoch_steps, max_epochs, depth=0, lr=4e-3, weight_decay=1e-9, hs=64, dropout=0, **kwargs):
-        super().__init__(epoch_steps=epoch_steps, max_epochs=max_epochs, lr=lr, weight_decay=weight_decay)
+    def __init__(self, c_in, steps_per_epoch, max_epochs, depth=0, lr=4e-3, weight_decay=1e-9, hs=64, dropout=0, **kwargs):
+        super().__init__(steps_per_epoch=steps_per_epoch, max_epochs=max_epochs, lr=lr, weight_decay=weight_decay)
         self.save_hyperparameters()
         
         

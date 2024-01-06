@@ -27,10 +27,10 @@ class PLSKBase(pl.LightningModule):
     """
     Base pytorch lightning module, subclass to add model
     """
-    def __init__(self, epoch_steps: int, max_epochs: int, lr=4e-3, weight_decay=1e-9):
+    def __init__(self, steps_per_epoch: int, max_epochs: int, lr=4e-3, weight_decay=1e-9):
         super().__init__()
         self.model = None # subclasses must add this
-        self.total_steps = epoch_steps * max_epochs
+        self.total_steps = steps_per_epoch * max_epochs
         self.save_hyperparameters()
 
         
@@ -78,7 +78,7 @@ class PLSKBase(pl.LightningModule):
         """a one cycle adam optimizer if very general and robust"""
         optimizer = optim.AdamW(self.parameters(), lr=self.hparams.lr, weight_decay=self.hparams.weight_decay)
         lr_scheduler = optim.lr_scheduler.OneCycleLR(
-            optimizer, self.hparams.lr, total_steps=self.hparams.epoch_steps * self.hparams.max_epochs,
+            optimizer, self.hparams.lr, total_steps=self.hparams.steps_per_epoch * self.hparams.max_epochs,
         )
         return [optimizer], [lr_scheduler]
     

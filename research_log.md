@@ -657,8 +657,8 @@ I need to flip during training. Easiest to just flip the last dim of y, and y=1-
 - [x] run 06b
 - [x] debug 07 compare probes
   - [x] importance matrix... it helps but not much
-  - [ ] experiment with diff layers?
-- [ ] VAE with importance matrix?
+  - [x] experiment with diff layers?
+- [x] VAE with importance matrix?
   - [ ] how to make tractable?
 - [ ] codebook
 - [ ] grant
@@ -680,4 +680,60 @@ takes in x,y where
 What's the best way to represent the data? Lets say we have
 
 - [Batch, Layers, Activations] for layers of differen't sizes.
-- 
+
+# 2024-01-06 09:33:53
+
+Found bugs:
+- was showing the wrong history
+- epochs were wrong for second stage of traiing, this effects the learning rate scheduler
+
+
+Why is the probe part not working?
+Is conv the right way? Maybe I should instead sort into groups and do a lienar or 1x1 conv, but diff groups each time
+A line
+
+```py
+
+x = torch.rand((2, 2089, 31))
+x = rearrange(x, 'b (c g) l -> b c g l', g=128)
+# 2, 16, 128, 31
+conv2d(16, 16, (1, 1))
+x = rearrange(x, 'b c g l -> b (c g) l')
+x = rearrange(x, 'b (c g) l -> b c g l', g=16)
+# 2, 128, 16, 31
+conv2d(128, 128, (1, 1))
+```
+
+or maybe torch geometric?
+or grouped linear?
+
+# 2024-01-06 12:17:29 too many activations?
+
+Questions:
+- Why is my VAE failing and all the latent spaces are the same, even with no l1!
+
+Solutions?
+- Just use a linear probe? I suspect this is not enougth. That's why we need VAE's. We need a way to desparsify. Well OK 1 layer VAE's are OK.
+- Well all to all is the problem? but with a one layer we don't need to?
+
+The problem is there are too many activations, and no real grouping. All to all is to hard, but conv doesn't make sense. We can just randomly try a few groupings?
+
+
+Is there a way to correlate, get KNN or something? Or graph
+
+What about how transformers handle image sequences?
+
+It's the many to many that are the problem. In theory we want to de-superposition it. And that means there's some combination that we want to decode. and those could be anywhere ON THE SAME LAYER and MODULE. Although if they are soon added together... (like out_proj, and fc2) we can just treat them as the weight of the residual. So each of those can be seperate!
+
+Actually, now that I think of it, maybe I don't want to take the diff, when using baukit?
+
+We could also potentially link them together using the weigths from the next layer as a GNN? But it's might be N layers layer?
+
+
+So... maybe just a single layer will be OK for a VAE? Or at least most of the computation can be in the first. Doesn't seem to be this huge need for the conv VAE.
+
+
+https://github.com/ai-safety-foundation/sparse_autoencoder
+
+TODO:
+- try SAE

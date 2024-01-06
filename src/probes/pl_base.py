@@ -9,10 +9,10 @@ class PLBase(pl.LightningModule):
     """
     Base pytorch lightning module, subclass to add model
     """
-    def __init__(self, epoch_steps: int, max_epochs: int, lr=4e-3, weight_decay=1e-9):
+    def __init__(self, steps_per_epoch: int, max_epochs: int, lr=4e-3, weight_decay=1e-9):
         super().__init__()
         self.probe = None # subclasses must add this
-        self.total_steps = epoch_steps * max_epochs
+        self.total_steps = steps_per_epoch * max_epochs
         self.save_hyperparameters()
         
     def forward(self, x):
@@ -52,7 +52,7 @@ class PLBase(pl.LightningModule):
     #         self.parameters(),
     #         lr=self.hparams.lr,
     #         weight_decay=self.hparams.weight_decay,       
-    #         num_iterations=self.hparams.epoch_steps * self.hparams.max_epochs,
+    #         num_iterations=self.hparams.steps_per_epoch * self.hparams.max_epochs,
     #     )
     #     return optimizer
     
@@ -61,7 +61,9 @@ class PLBase(pl.LightningModule):
         optimizer = optim.AdamW(self.parameters(), lr=self.hparams.lr, weight_decay=self.hparams.weight_decay)
         # https://lightning.ai/docs/pytorch/stable/common/precision_intermediate.html#quantization-via-bitsandbytes
         # optimizer = bnb.optim.AdamW8bit(self.parameters(), lr=self.hparams.lr, weight_decay=self.hparams.weight_decay)
+        total_steps = self.hparams.steps_per_epoch * self.hparams.max_epochs
+        # if self.ae_mode = 0
         lr_scheduler = optim.lr_scheduler.OneCycleLR(
-            optimizer, self.hparams.lr, total_steps=self.total_steps
+            optimizer, self.hparams.lr, total_steps=total_steps
         )
         return [optimizer], [lr_scheduler]
