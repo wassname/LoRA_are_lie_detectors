@@ -32,11 +32,14 @@ def get_importance_matrix(saved_adaptop_file, layers=['fc1', 'Wqkv']):
     # adapter weights <1 indicate less importance? Or less changes. Or neither.
     importance_matrix = (importance_matrix-1)
     # importance_matrix = importance_matrix ** 3 # square to make it positive
-    importance_matrix = importance_matrix / importance_matrix.std()
+    importance_matrix = importance_matrix / (0.1*importance_matrix.std())
     importance_matrix = importance_matrix + 1
 
     # square to make it positive
-    return importance_matrix.abs().clamp(0, None) ** 3
+    importance_matrix = importance_matrix.clamp(0, None) 
+    importance_matrix -= importance_matrix.mean() - 1
+
+    return importance_matrix
 
 
 # f = "/media/wassname/SGIronWolf/projects5/elk/sgd_probes_are_lie_detectors/notebooks/lightning_logs/version_276/checkpoint_last/adapter_model.safetensors"

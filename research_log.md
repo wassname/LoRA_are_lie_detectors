@@ -711,6 +711,8 @@ or grouped linear?
 
 Questions:
 - Why is my VAE failing and all the latent spaces are the same, even with no l1!
+  - oh dropout was 1, and the schedle was weong. fixes
+- why do I get inf, when using val??
 
 Solutions?
 - Just use a linear probe? I suspect this is not enougth. That's why we need VAE's. We need a way to desparsify. Well OK 1 layer VAE's are OK.
