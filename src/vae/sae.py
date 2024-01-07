@@ -59,9 +59,9 @@ class AutoEncoder(nn.Module):
         if self.importance_matrix is not None:
             importance_matrix = self.importance_matrix[None, : ].to(h_err.device)
             h_err = h_err * importance_matrix
-        l2_loss = h_err.pow(2).mean(-1) # shape [batch_size n_instances]
-        l1_loss = acts.abs().sum(-1) # shape [batch_size n_instances]
-        loss = (self.cfg.l1_coeff * l1_loss + l2_loss).mean(0).sum() # scalar
+        l2_loss = h_err.pow(2).sum(2).sum(1) # shape [batch_size n_instances features versions]
+        l1_loss = acts.abs().sum(2).sum(1) # shape [batch_size n_instances n_latent]
+        loss = (self.cfg.l1_coeff * l1_loss + l2_loss).mean(0) # scalar
 
         return l1_loss, l2_loss, loss, acts, h_reconstructed
 

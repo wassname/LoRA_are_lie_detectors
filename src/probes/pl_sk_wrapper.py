@@ -77,9 +77,10 @@ class PLSKBase(pl.LightningModule):
     def configure_optimizers(self):
         """a one cycle adam optimizer if very general and robust"""
         optimizer = optim.AdamW(self.parameters(), lr=self.hparams.lr, weight_decay=self.hparams.weight_decay)
-        lr_scheduler = optim.lr_scheduler.OneCycleLR(
-            optimizer, self.hparams.lr, total_steps=self.hparams.steps_per_epoch * self.hparams.max_epochs,
+        scheduler = optim.lr_scheduler.OneCycleLR(
+            optimizer, self.hparams.lr, total_steps=self.hparams.steps_per_epoch * self.hparams.max_epochs, verbose=False
         )
+        lr_scheduler = {'scheduler': scheduler, 'interval': 'step'}
         return [optimizer], [lr_scheduler]
     
 

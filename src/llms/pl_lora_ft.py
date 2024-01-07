@@ -233,7 +233,8 @@ class AtapterFinetuner(pl.LightningModule):
         optimizer = optim.AdamW(self.parameters(), lr=self.hparams.lr, weight_decay=self.hparams.weight_decay)
         # https://lightning.ai/docs/pytorch/stable/common/precision_intermediate.html#quantization-via-bitsandbytes
         # optimizer = bnb.optim.AdamW8bit(self.parameters(), lr=self.hparams.lr, weight_decay=self.hparams.weight_decay)
-        lr_scheduler = optim.lr_scheduler.OneCycleLR(
-            optimizer, self.hparams.lr, total_steps=self.hparams.total_steps
+        scheduler = optim.lr_scheduler.OneCycleLR(
+            optimizer, self.hparams.lr, total_steps=self.hparams.total_steps, verbose=False,
         )
+        lr_scheduler = {'scheduler': scheduler, 'interval': 'step'}
         return [optimizer], [lr_scheduler]
