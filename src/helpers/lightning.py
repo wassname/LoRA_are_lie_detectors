@@ -3,6 +3,7 @@ from pathlib import Path
 import pandas as pd
 import re
 from matplotlib import pyplot as plt
+from typing import List, Dict
 
 
 def read_metrics_csv(metrics_file_path):
@@ -28,9 +29,11 @@ def _transform_dl_k(k: str) -> str:
     return p.group(1) if p else k
 
 
-def rename_pl_test_results(rs, ks=["train", "val", "test"]):
+def rename_pl_test_results(rs: List[Dict[str, float]], ks=["train", "val", "test"]):
     """
     pytorch lighting test outputs `List of dictionaries with metrics logged during the test phase` where the dataloaders are named `test/val/dataloader_idx_0` etc. This renames them to `val` etc.
+
+    UPDATE some version output a dict of dicts
     """
     rs = {
         ks[i]: {_transform_dl_k

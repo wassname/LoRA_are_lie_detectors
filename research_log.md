@@ -740,3 +740,31 @@ https://github.com/ai-safety-foundation/sparse_autoencoder
 TODO:
 - try SAE
 Perhaps consider 
+
+
+# 2024-01-10 09:57:04
+
+So I ran a SAE with an without an importance matrix
+- notebooks/11c_sae_no_imp.ipynb
+   
+  |  ood/acc          │     0.860162615776062     │
+  │        ood/auroc         │    0.9372375011444092  
+- notebooks/11c_sae_.ipynb
+
+  │         ood/acc          │    0.8764227628707886     │
+  │        ood/auroc         │    0.9502072930335999     
+
+
+So it made little, ~~1% diff
+
+
+It should help more, hmm. 
+
+
+TODO:
+- latest version with no diff
+  - 106? need to run SAE and probes
+- bias only adapter
+- improve importance matrix
+- SAE works well, how to imporove?
+  - could use the multi layer one... https://github.com/ai-safety-foundation/sparse_autoencoder
