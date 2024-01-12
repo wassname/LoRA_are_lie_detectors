@@ -761,10 +761,31 @@ So it made little, ~~1% diff
 It should help more, hmm. 
 
 
+
+
+
 TODO:
 - latest version with no diff
   - 106? need to run SAE and probes
+    - probes got 0.765 for MSE ranking, 0.773 for BCE
+    - 0.529 bool ranking. 0.715 conformal
+    - 0.227 (actually 0.78?) for CCS
+    - 0.616 wit no importance matrix and LR. 0.605 with IM. hmm
 - bias only adapter
 - improve importance matrix
 - SAE works well, how to imporove?
   - could use the multi layer one... https://github.com/ai-safety-foundation/sparse_autoencoder
+
+Oh the AI Saftey one is complex. 1 layer. and not training? Wait it does train, but slowely. it works end to end. 
+
+
+Might be easier to just do my simple exaple?
+
+
+SAE improvements:
+- modular layers
+- can I replace the custom linear with an actual linear? Linear applies the transformation to the last dim.
+
+
+
+one idea it to due batch norm with affine false, at input and output tied bias

@@ -29,17 +29,21 @@ def _transform_dl_k(k: str) -> str:
     return p.group(1) if p else k
 
 
-def rename_pl_test_results(rs: List[Dict[str, float]], ks=["train", "val", "test"]):
+def rename_pl_test_results(rs: List[Dict[str, float]], ks=["train", "val", "test"], verbose=True):
     """
     pytorch lighting test outputs `List of dictionaries with metrics logged during the test phase` where the dataloaders are named `test/val/dataloader_idx_0` etc. This renames them to `val` etc.
 
-    UPDATE some version output a dict of dicts
+    usage:
+        rs = trainer3.test(net, dataloaders=[dl_train, dl_val, dl_test, dl_ood])
+        df_rs = rename_pl_test_results(rs, ["train", "val", "test", "ood"])
     """
     rs = {
         ks[i]: {_transform_dl_k
         (k): v for k, v in rs[i].items()} for i in range(len(ks))
     }
-    return rs
+    if verbose:
+        print(pd.DataFrame(rs).round(3).to_markdown())
+    return pd.DataFrame(rs)
 
 def plot_hist(df_hist, allowlist=None, logy=False):
     """
@@ -49,6 +53,7 @@ def plot_hist(df_hist, allowlist=None, logy=False):
     for suffix in suffixes:
         if allowlist and suffix not in allowlist:
             continue
-        df_hist[[c for c in df_hist.columns if c.endswith(suffix) and '/' in c]].plot(title=suffix, style='.', logy=logy)
+        plt.figure(figsize=(8, 3))
+        df_hist[[c for c in df_hist.columns if c.endswith(suffix) and '/' in c]].plot(title=suffix, style='.', logy=logy, ax=plt.gca())
         plt.title(suffix)   
         plt.show()

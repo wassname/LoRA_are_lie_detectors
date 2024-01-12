@@ -35,6 +35,8 @@ seaborn = "^0.13.0"
 mapie = "^0.7.0"
 baukit = {git = "https://github.com/davidbau/baukit"}
 sparse-autoencoder = "^1.8.0"
+transformer-lens = "^1.12.0"
+pytest = "^7.4.4"
 
 [[tool.poetry.source]]
 name = "pytorch"

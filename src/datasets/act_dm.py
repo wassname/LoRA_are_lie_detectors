@@ -6,9 +6,9 @@ from loguru import logger
 import uuid
 from src.helpers.shared_dataset import SharedDataset
 
-def to_ds(ds, name):
-    tds = torch.utils.data.TensorDataset(ds['X'], ds['y'])
-    return SharedDataset(tds, name)
+# def to_ds(ds, name):
+#     tds = torch.utils.data.TensorDataset(ds['X'], ds['y'])
+#     return SharedDataset(tds, name)
 
 class ActivationDataModule(pl.LightningDataModule):
     """
@@ -46,6 +46,8 @@ class ActivationDataModule(pl.LightningDataModule):
         h = self.hparams
         # 4x faster if we make it a tensor ourselves
         ds = ds.with_format(None)
+        if name == "train":
+            ds = ds.shuffle(seed=42)
         tds = torch.utils.data.TensorDataset(
             torch.FloatTensor(ds['X']), torch.FloatTensor(ds['y']))
         
@@ -55,11 +57,13 @@ class ActivationDataModule(pl.LightningDataModule):
         return tds
 
     def setup(self, stage: str = "train"):
+        print(f"setup {stage}")
         n = len(self.ds)
         self.splits = {
             "train": (0, int(n * 0.5)),
             "val": (int(n * 0.5), int(n * 0.75)),
             "test": (int(n * 0.75), n),
+            "all": (0, n),
         }
         logger.info(f'converting datasets this may take a while... {self.hparams.name} {stage}')
         if stage=="train":
@@ -68,7 +72,7 @@ class ActivationDataModule(pl.LightningDataModule):
                 for key, (start, end) in self.splits.items()
             }
         elif stage=="all":
-            self.datasets = {"all": to_ds(self.ds, 'all')}
+            self.datasets = {"all": self.to_tds(self.ds, 'all')}
         else:
             raise NotImplementedError(f"unknown stage {stage}")
 
@@ -77,7 +81,7 @@ class ActivationDataModule(pl.LightningDataModule):
         # 4x faster if we make it a tensor ourselves
         tds = self.datasets[name]
         return DataLoader(
-            tds, batch_size=h.batch_size, drop_last=False, shuffle=shuffle, num_workers=h.num_workers,
+            tds, batch_size=h.batch_size, drop_last=False, shuffle=False, num_workers=h.num_workers,
             pin_memory=True,
             # timeout=20 if h.num_workers>0 else None, 
             # persistent_workers=h.num_workers>0,
@@ -112,6 +116,7 @@ class TokenDataModule(pl.LightningDataModule):
 
 
     def setup(self, stage: str = "train"):
+        print(f"setup {stage}")
         n = len(self.ds)
         self.splits = {
             "train": (0, int(n * 0.5)),
