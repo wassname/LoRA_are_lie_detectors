@@ -44,16 +44,20 @@ class NormedLinear(nn.Linear):
             F.normalize(self.weight, dim=self.norm_dim, out=self.weight)
 
 class NormedLinears(nn.Module):
-    def __init__(self, n_instances: int, n_input_ae: int, n_output: int, weight_norm_dim=None):
+    def __init__(self, n_instances: int, n_input_ae: int, n_output: int, weight_norm_dim=None, act: Callable = nn.ReLU()):
         super().__init__()
         self.linears = nn.ModuleList(NormedLinear(n_input_ae, n_output, norm_dim=weight_norm_dim) for _ in range(n_instances))
+        self.act = act
 
     def weight_norm(self) -> None:
         for m in self.linears:
             m.weight_norm()
 
     def forward(self, x: Tensor) -> Tensor:
-        return t.stack([m(x[:, i]) for i, m in enumerate(self.linears)], dim=1)
+        x = t.stack([m(x[:, i]) for i, m in enumerate(self.linears)], dim=1)
+        if self.act is not None:
+            x = self.act(x)
+        return x
     
 
 class AffineInstanceNorm1d(nn.BatchNorm1d):
@@ -93,36 +97,52 @@ class AutoEncoder(nn.Module):
         # instead of a tied bias, we use a batch norm type module to track and adjust for the training mean and std. We also have an inverse function to undo the normalization.
         self.norm = Affines(cfg.n_instances, cfg.n_input_ae)
 
-        self.encoder = []
-        for i in range(cfg.depth):
-            self.encoder.append(NormedLinears(cfg.n_instances, cfg.n_input_ae, cfg.n_hidden_ae))
-            self.encoder.append(nn.ReLU())
+        self.encoder = [
+            NormedLinears(cfg.n_instances, cfg.n_input_ae, cfg.n_hidden_ae)
+        ]
+        for i in range(1, cfg.depth):
+            self.encoder.append(NormedLinears(cfg.n_instances, cfg.n_hidden_ae, cfg.n_hidden_ae))
         self.encoder = nn.Sequential(*self.encoder)
 
         self.decoder = []
-        for i in range(cfg.depth):
-            self.decoder.append(NormedLinears(cfg.n_instances, cfg.n_hidden_ae, cfg.n_input_ae, weight_norm_dim=0))
-            if i<cfg.depth-1:
-                self.decoder.append(nn.ReLU())
+        for i in range(cfg.depth-1):
+            self.decoder.append(NormedLinears(cfg.n_instances, cfg.n_hidden_ae, cfg.n_hidden_ae, weight_norm_dim=0))
+        self.decoder.append(NormedLinears(cfg.n_instances, cfg.n_hidden_ae, cfg.n_input_ae, weight_norm_dim=0, act=None))
+
         self.decoder = nn.Sequential(*self.decoder)
 
     def forward(self, h: Float[Tensor, "batch_size n_instances n_hidden"]):
 
         # Compute activations
+        depth = self.cfg.depth
         h_cent = self.norm(h)
-        acts = self.encoder(h_cent)
-        h_reconstructed = self.norm.inv(self.decoder(acts))
+        
+        # We're trying gradual sparsity. Where the middle layer has the full sparsity, but the outer layers have less. This should encourage the model to learn increasing sparse representations.
+        l1_loss = 0
+        for i, m in enumerate(self.encoder):
+            h_cent = m(h_cent)
+            l1_loss += h_cent.abs().mean(2).sum(1) / (depth-i)**2 # shape [batch_size n_instances n_latent]
+        acts = latent = h_cent
+
+        # acts = self.encoder(h_cent)
+
+        for i, m in enumerate(self.decoder):
+            acts = m(acts)
+            l1_loss += acts.abs().mean(2).sum(1) / (i+1)**2 # shape [batch_size n_instances n_latent]
+        h_reconstructed = self.norm.inv(acts)
+
+        # h_reconstructed = self.norm.inv(self.decoder(acts))
 
         # Compute loss, return values
         h_err = h_reconstructed - h
         if self.importance_matrix is not None:
             importance_matrix = self.importance_matrix[None, : ].to(h_err.device)
             h_err = h_err * importance_matrix
-        l2_loss = h_err.pow(2).sum(2).sum(1) # shape [batch_size n_instances features]
-        l1_loss = acts.abs().sum(2).sum(1) # shape [batch_size n_instances n_latent]
+        l2_loss = h_err.pow(2).mean(2).sum(1) # shape [batch_size n_instances features]
+        # l1_loss = acts.abs().mean(2).sum(1) # shape [batch_size n_instances n_latent]
         loss = (self.cfg.l1_coeff * l1_loss + l2_loss).mean(0) # scalar
 
-        return l1_loss, l2_loss, loss, acts, h_reconstructed
+        return l1_loss, l2_loss, loss, latent, h_reconstructed
 
     @t.no_grad()
     def normalize_decoder(self) -> None:

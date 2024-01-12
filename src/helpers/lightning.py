@@ -53,7 +53,7 @@ def plot_hist(df_hist, allowlist=None, logy=False):
     for suffix in suffixes:
         if allowlist and suffix not in allowlist:
             continue
-        plt.figure(figsize=(8, 3))
+        plt.figure(figsize=(5, 2))
         df_hist[[c for c in df_hist.columns if c.endswith(suffix) and '/' in c]].plot(title=suffix, style='.', logy=logy, ax=plt.gca())
         plt.title(suffix)   
         plt.show()

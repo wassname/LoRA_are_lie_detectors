@@ -36,8 +36,8 @@ def get_importance_matrix(saved_adaptop_file, layers=['fc1', 'Wqkv']):
     importance_matrix = importance_matrix + 1
 
     # square to make it positive
-    importance_matrix = importance_matrix.clamp(0, None) 
-    importance_matrix -= importance_matrix.mean() - 1
+    # importance_matrix = importance_matrix.clamp(0, None) 
+    # importance_matrix -= importance_matrix.mean() - 1
 
     return importance_matrix
 
