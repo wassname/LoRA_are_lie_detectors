@@ -28,6 +28,7 @@ class AutoEncoderConfig:
     n_hidden_ae: int
     l1_coeff: float = 0.5
     tied_weights: bool = False
+    depth: int = 1
 
 
 class NormedLinear(nn.Linear):
@@ -84,24 +85,24 @@ class Affines(nn.Module):
 
 class AutoEncoder(nn.Module):
 
-    def __init__(self, cfg: AutoEncoderConfig, importance_matrix: Float[Tensor, "n_instances n_input_ae"] = None, depth=1):
+    def __init__(self, cfg: AutoEncoderConfig, importance_matrix: Float[Tensor, "n_instances n_input_ae"] = None):
         super().__init__()
         self.cfg = cfg
         self.importance_matrix = importance_matrix
 
         # instead of a tied bias, we use a batch norm type module to track and adjust for the training mean and std. We also have an inverse function to undo the normalization.
-        self.norm = Affines(cfg.n_hidden_ae)
+        self.norm = Affines(cfg.n_instances, cfg.n_input_ae)
 
         self.encoder = []
-        for i in range(depth):
+        for i in range(cfg.depth):
             self.encoder.append(NormedLinears(cfg.n_instances, cfg.n_input_ae, cfg.n_hidden_ae))
             self.encoder.append(nn.ReLU())
         self.encoder = nn.Sequential(*self.encoder)
 
         self.decoder = []
-        for i in range(depth):
+        for i in range(cfg.depth):
             self.decoder.append(NormedLinears(cfg.n_instances, cfg.n_hidden_ae, cfg.n_input_ae, weight_norm_dim=0))
-            if i<depth-1:
+            if i<cfg.depth-1:
                 self.decoder.append(nn.ReLU())
         self.decoder = nn.Sequential(*self.decoder)
 
@@ -128,4 +129,6 @@ class AutoEncoder(nn.Module):
         '''
         Normalizes the decoder weights to have unit norm. If using tied weights, we we assume W_enc is used for both.
         '''
-        self.decoder.weight_norm()
+        for m in self.decoder:
+            if isinstance(m, NormedLinears):
+                m.weight_norm()
