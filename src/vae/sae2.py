@@ -16,7 +16,8 @@ import einops
 import numpy as np
 
 from jaxtyping import Float
-from typing import Optional, Union, Callable
+from typing import Optional, Union, Callable, Tuple
+
 
 @dataclass
 class AutoEncoderConfig:
@@ -28,7 +29,9 @@ class AutoEncoderConfig:
     n_input_ae: int
     n_hidden_ae: int
     l1_coeff: float = 0.5
-    depth: int = 1
+
+    # list of layer sizes, placed in between the input and output
+    encoder_sizes: Optional[Tuple] = tuple()
 
 
 class NormedLinear(nn.Linear):
@@ -43,10 +46,22 @@ class NormedLinear(nn.Linear):
         if self.norm_dim is not None:
             F.normalize(self.weight, dim=self.norm_dim, out=self.weight)
 
+
 class NormedLinears(nn.Module):
-    def __init__(self, n_instances: int, n_input_ae: int, n_output: int, weight_norm_dim=None, act: Callable = nn.ReLU()):
+    def __init__(
+        self,
+        n_instances: int,
+        n_input_ae: int,
+        n_output: int,
+        weight_norm_dim=None,
+        act: Callable = nn.ReLU(),
+        bias=True,
+    ):
         super().__init__()
-        self.linears = nn.ModuleList(NormedLinear(n_input_ae, n_output, norm_dim=weight_norm_dim) for _ in range(n_instances))
+        self.linears = nn.ModuleList(
+            NormedLinear(n_input_ae, n_output, norm_dim=weight_norm_dim, bias=bias)
+            for _ in range(n_instances)
+        )
         self.act = act
 
     def weight_norm(self) -> None:
@@ -58,27 +73,32 @@ class NormedLinears(nn.Module):
         if self.act is not None:
             x = self.act(x)
         return x
-    
+
 
 class AffineInstanceNorm1d(nn.BatchNorm1d):
     """
     A Batch norm which can be inverted
     """
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, affine=False, track_running_stats=True, **kwargs)
 
     def inv(self, x: Float[Tensor, "batch_size n_hidden"]):
         return x * self.running_var + self.running_mean
-    
+
+
 class Affines(nn.Module):
     """
     Multiple batch norms.
 
     We use this to track and adjust for data for the mean and std of the training dataset
     """
+
     def __init__(self, n_instances: int, n_input_ae: int):
         super().__init__()
-        self.affines = nn.ModuleList(AffineInstanceNorm1d(n_input_ae) for _ in range(n_instances))
+        self.affines = nn.ModuleList(
+            AffineInstanceNorm1d(n_input_ae) for _ in range(n_instances)
+        )
 
     def forward(self, x: Float[Tensor, "batch_size n_instances n_hidden"]) -> Tensor:
         return t.stack([m(x[:, i]) for i, m in enumerate(self.affines)], dim=1)
@@ -88,8 +108,11 @@ class Affines(nn.Module):
 
 
 class AutoEncoder(nn.Module):
-
-    def __init__(self, cfg: AutoEncoderConfig, importance_matrix: Float[Tensor, "n_instances n_input_ae"] = None):
+    def __init__(
+        self,
+        cfg: AutoEncoderConfig,
+        importance_matrix: Float[Tensor, "n_instances n_input_ae"] = None,
+    ):
         super().__init__()
         self.cfg = cfg
         self.importance_matrix = importance_matrix
@@ -97,80 +120,96 @@ class AutoEncoder(nn.Module):
         # instead of a tied bias, we use a batch norm type module to track and adjust for the training mean and std. We also have an inverse function to undo the normalization.
         self.norm = Affines(cfg.n_instances, cfg.n_input_ae)
 
-        # self.encoder = [
-        #     NormedLinears(cfg.n_instances, cfg.n_input_ae, cfg.n_hidden_ae)
-        # ]
-        # for i in range(1, cfg.depth):
-        #     self.encoder.append(NormedLinears(cfg.n_instances, cfg.n_hidden_ae, cfg.n_hidden_ae))
-        # self.encoder = nn.Sequential(*self.encoder)
-
-        # self.decoder = []
-        # for i in range(cfg.depth-1):
-        #     self.decoder.append(NormedLinears(cfg.n_instances, cfg.n_hidden_ae, cfg.n_hidden_ae, weight_norm_dim=0))
-        # self.decoder.append(NormedLinears(cfg.n_instances, cfg.n_hidden_ae, cfg.n_input_ae, weight_norm_dim=0, act=None))
-
-        # We want a pyrimidal, log spaced, hidden states.
-        encoder_sizes = np.logspace(np.log10(cfg.n_input_ae), np.log10(cfg.n_hidden_ae), cfg.depth+1).astype(int) // 8
-        encoder_sizes = [cfg.n_input_ae] + list(encoder_sizes[1:-1]) + [cfg.n_hidden_ae]
+        encoder_sizes = [cfg.n_input_ae] + cfg.encoder_sizes + [cfg.n_hidden_ae]
         decoder_sizes = encoder_sizes[::-1]
+        depth = len(encoder_sizes)
 
-
-        self.encoder = [
-            # NormedLinears(cfg.n_instances, cfg.n_input_ae, cfg.n_hidden_ae)
-        ]
-        for i in range(len(encoder_sizes)-1):
-            self.encoder.append(NormedLinears(cfg.n_instances, encoder_sizes[i], encoder_sizes[i+1]))
+        self.encoder = []
+        for i in range(depth - 1):
+            self.encoder.append(
+                NormedLinears(cfg.n_instances, encoder_sizes[i], encoder_sizes[i + 1], 
+                              bias=(i <= (depth - 2)) & (i>1),)
+            )
         self.encoder = nn.Sequential(*self.encoder)
 
         self.decoder = []
-        for i in range(len(encoder_sizes)-1):
-            self.decoder.append(NormedLinears(cfg.n_instances, decoder_sizes[i], decoder_sizes[i+1], weight_norm_dim=0, act = None if i>=(cfg.depth-1) else nn.ReLU()))
-
+        for i in range(depth - 1):
+            self.decoder.append(
+                NormedLinears(
+                    cfg.n_instances,
+                    decoder_sizes[i],
+                    decoder_sizes[i + 1],
+                    weight_norm_dim=0,
+                    act=None if i >= (depth - 2) else nn.ReLU(),
+                    bias=i >= (depth - 2),
+                )
+            )
         self.decoder = nn.Sequential(*self.decoder)
 
     def forward(self, h: Float[Tensor, "batch_size n_instances n_hidden"]):
-
         # Compute activations
-        depth = self.cfg.depth
-        h_cent = self.norm(h)
-        
+        depth = len(self.cfg.encoder_sizes)
+        x = self.norm(h)
+
         # We're trying gradual sparsity. Where the middle layer has the full sparsity, but the outer layers have less. This should encourage the model to learn increasing sparse representations.
         l1_losses = []
+        l1_raw = []
         for i, m in enumerate(self.encoder):
-            h_cent = m(h_cent)
-            l1 = h_cent.abs().mean(2).sum(1) / (depth-i)**2 # shape [batch_size n_instances n_latent]
-            l1_losses.append(l1)
-        acts = latent = h_cent
+            x = m(x)
 
-        # acts = self.encoder(h_cent)
+            l1 = calc_l1_loss(x)
+            l1_raw.append(l1)
+            l1_losses.append (
+                l1 / (depth - i + 1) ** 2
+            )
+        latent = x
 
         for i, m in enumerate(self.decoder):
-            acts = m(acts)
-            l1 += acts.abs().mean(2).sum(1) / (i+1)**2 # shape [batch_size n_instances n_latent]
-            l1_losses.append(l1)
-        h_reconstructed = self.norm.inv(acts)
+            x = m(x)
+            if i<depth-1:
+                l1 = calc_l1_loss(x)
+                l1_raw.append(l1)
+                l1_losses.append(l1 / (i + 2) ** 2)
+        h_reconstructed = self.norm.inv(x)
 
-        l1_loss = t.stack(l1_losses, dim=1).sum(1)
+        l1_loss = t.stack(l1_losses, dim=1).mean(1)
 
         # h_reconstructed = self.norm.inv(self.decoder(acts))
 
         # Compute loss, return values
         h_err = h_reconstructed - h
         if self.importance_matrix is not None:
-            importance_matrix = self.importance_matrix[None, : ].to(h_err.device)
+            importance_matrix = self.importance_matrix[None, :].to(h_err.device)
             h_err = h_err * importance_matrix
-        l2_loss = h_err.pow(2).mean(2).sum(1) # shape [batch_size n_instances features]
+        l2_loss = calc_l2_loss(h_err)  # shape [batch_size n_instances features]
         # l1_loss = acts.abs().mean(2).sum(1) # shape [batch_size n_instances n_latent]
-        loss = (self.cfg.l1_coeff * l1_loss + l2_loss).mean(0) # scalar
+        loss = (self.cfg.l1_coeff * l1_loss + l2_loss)
+        loss = einops.reduce(loss, 'b n -> ', 'mean')
 
-        l1_losses = [l1.mean() for l1 in l1_losses]
-        return loss, latent, h_reconstructed,dict(l1_losses=l1_losses, l1_loss=l1_loss, l2_loss=l2_loss)
+        l1_losses = t.tensor([l1.mean().item() for l1 in l1_losses])
+        l1_raw = t.tensor( [l1.mean().item() for l1 in l1_raw])
+        return (
+            loss,
+            latent,
+            h_reconstructed,
+            dict(l1_losses=l1_losses, l1_loss=l1_loss, l2_loss=l2_loss, l1_raw=l1_raw),
+        )
 
     @t.no_grad()
     def normalize_decoder(self) -> None:
-        '''
+        """
         Normalizes the decoder weights to have unit norm. If using tied weights, we we assume W_enc is used for both.
-        '''
+        """
         for m in self.decoder:
             if isinstance(m, NormedLinears):
                 m.weight_norm()
+
+
+def calc_l1_loss(x: Float[Tensor, "batch_size n_instances n_latent"]):
+    """
+    Not we chose to sum over the latent and feature, even thought they have differen't dimensions. This is because we want the total information stored
+    """
+    return einops.reduce(x.abs(), 'b n l -> b n', 'sum')
+
+def calc_l2_loss(h_err: Float[Tensor, "batch_size n_instances features"]):
+    return einops.reduce(h_err.pow(2), 'b n f -> b n', 'sum')
