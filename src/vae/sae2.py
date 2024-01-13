@@ -13,6 +13,7 @@ from torch import nn, Tensor
 from torch.nn import functional as F
 from dataclasses import dataclass
 import einops
+import numpy as np
 
 from jaxtyping import Float
 from typing import Optional, Union, Callable
@@ -27,7 +28,6 @@ class AutoEncoderConfig:
     n_input_ae: int
     n_hidden_ae: int
     l1_coeff: float = 0.5
-    tied_weights: bool = False
     depth: int = 1
 
 
@@ -97,17 +97,34 @@ class AutoEncoder(nn.Module):
         # instead of a tied bias, we use a batch norm type module to track and adjust for the training mean and std. We also have an inverse function to undo the normalization.
         self.norm = Affines(cfg.n_instances, cfg.n_input_ae)
 
+        # self.encoder = [
+        #     NormedLinears(cfg.n_instances, cfg.n_input_ae, cfg.n_hidden_ae)
+        # ]
+        # for i in range(1, cfg.depth):
+        #     self.encoder.append(NormedLinears(cfg.n_instances, cfg.n_hidden_ae, cfg.n_hidden_ae))
+        # self.encoder = nn.Sequential(*self.encoder)
+
+        # self.decoder = []
+        # for i in range(cfg.depth-1):
+        #     self.decoder.append(NormedLinears(cfg.n_instances, cfg.n_hidden_ae, cfg.n_hidden_ae, weight_norm_dim=0))
+        # self.decoder.append(NormedLinears(cfg.n_instances, cfg.n_hidden_ae, cfg.n_input_ae, weight_norm_dim=0, act=None))
+
+        # We want a pyrimidal, log spaced, hidden states.
+        encoder_sizes = np.logspace(np.log10(cfg.n_input_ae), np.log10(cfg.n_hidden_ae), cfg.depth+1).astype(int) // 8
+        encoder_sizes = [cfg.n_input_ae] + list(encoder_sizes[1:-1]) + [cfg.n_hidden_ae]
+        decoder_sizes = encoder_sizes[::-1]
+
+
         self.encoder = [
-            NormedLinears(cfg.n_instances, cfg.n_input_ae, cfg.n_hidden_ae)
+            # NormedLinears(cfg.n_instances, cfg.n_input_ae, cfg.n_hidden_ae)
         ]
-        for i in range(1, cfg.depth):
-            self.encoder.append(NormedLinears(cfg.n_instances, cfg.n_hidden_ae, cfg.n_hidden_ae))
+        for i in range(len(encoder_sizes)-1):
+            self.encoder.append(NormedLinears(cfg.n_instances, encoder_sizes[i], encoder_sizes[i+1]))
         self.encoder = nn.Sequential(*self.encoder)
 
         self.decoder = []
-        for i in range(cfg.depth-1):
-            self.decoder.append(NormedLinears(cfg.n_instances, cfg.n_hidden_ae, cfg.n_hidden_ae, weight_norm_dim=0))
-        self.decoder.append(NormedLinears(cfg.n_instances, cfg.n_hidden_ae, cfg.n_input_ae, weight_norm_dim=0, act=None))
+        for i in range(len(encoder_sizes)-1):
+            self.decoder.append(NormedLinears(cfg.n_instances, decoder_sizes[i], decoder_sizes[i+1], weight_norm_dim=0, act = None if i>=(cfg.depth-1) else nn.ReLU()))
 
         self.decoder = nn.Sequential(*self.decoder)
 
@@ -118,18 +135,22 @@ class AutoEncoder(nn.Module):
         h_cent = self.norm(h)
         
         # We're trying gradual sparsity. Where the middle layer has the full sparsity, but the outer layers have less. This should encourage the model to learn increasing sparse representations.
-        l1_loss = 0
+        l1_losses = []
         for i, m in enumerate(self.encoder):
             h_cent = m(h_cent)
-            l1_loss += h_cent.abs().mean(2).sum(1) / (depth-i)**2 # shape [batch_size n_instances n_latent]
+            l1 = h_cent.abs().mean(2).sum(1) / (depth-i)**2 # shape [batch_size n_instances n_latent]
+            l1_losses.append(l1)
         acts = latent = h_cent
 
         # acts = self.encoder(h_cent)
 
         for i, m in enumerate(self.decoder):
             acts = m(acts)
-            l1_loss += acts.abs().mean(2).sum(1) / (i+1)**2 # shape [batch_size n_instances n_latent]
+            l1 += acts.abs().mean(2).sum(1) / (i+1)**2 # shape [batch_size n_instances n_latent]
+            l1_losses.append(l1)
         h_reconstructed = self.norm.inv(acts)
+
+        l1_loss = t.stack(l1_losses, dim=1).sum(1)
 
         # h_reconstructed = self.norm.inv(self.decoder(acts))
 
@@ -142,7 +163,8 @@ class AutoEncoder(nn.Module):
         # l1_loss = acts.abs().mean(2).sum(1) # shape [batch_size n_instances n_latent]
         loss = (self.cfg.l1_coeff * l1_loss + l2_loss).mean(0) # scalar
 
-        return l1_loss, l2_loss, loss, latent, h_reconstructed
+        l1_losses = [l1.mean() for l1 in l1_losses]
+        return loss, latent, h_reconstructed,dict(l1_losses=l1_losses, l1_loss=l1_loss, l2_loss=l2_loss)
 
     @t.no_grad()
     def normalize_decoder(self) -> None:
