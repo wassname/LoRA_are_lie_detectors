@@ -109,6 +109,7 @@ class Affines(nn.Module):
     def inv(self, x: Float[Tensor, "batch_size n_instances n_hidden"]) -> Tensor:
         return t.stack([m.inv(x[:, i]) for i, m in enumerate(self.affines)], dim=1)
     
+from einops.layers.torch import Rearrange, Reduce
 
 class Encoder(nn.Module):
     def __init__(self, cfg: AutoEncoderConfig):
@@ -119,13 +120,34 @@ class Encoder(nn.Module):
         depth = len(encoder_sizes)
 
         self.encoder = []
-        for i in range(depth - 1):
+        for i in range(depth - 2):
             self.encoder.append(
                 NormedLinears(cfg.n_instances, encoder_sizes[i], encoder_sizes[i + 1], 
-                              bias=(i <= (depth - 2)) & (i>1),
-                              act=None if i >= (depth - 2) else nn.ReLU(),
+                              bias=(i>1),
                               )
             )
+        
+        # mixer: mix the layers
+        self.encoder += [
+            Rearrange('b l f -> b (l f)'),
+            nn.Linear(
+                encoder_sizes[-2]*cfg.n_instances,
+                encoder_sizes[-2]*cfg.n_instances,
+            ),
+            Rearrange('b (l f) -> b l f', l=cfg.n_instances),
+        ]
+            
+
+        # final layer
+        self.encoder.append(
+            NormedLinears(
+                cfg.n_instances,
+                encoder_sizes[-2],
+                cfg.n_hidden_ae,
+                bias=True,
+                act=None,
+            )
+        )
         self.encoder = nn.Sequential(*self.encoder)
 
     def forward(self, x):
@@ -145,17 +167,37 @@ class Decoder(nn.Module):
         depth = len(decoder_sizes)
 
         self.decoder = []
-        for i in range(depth - 1):
+        for i in range(depth - 2):
             self.decoder.append(
                 NormedLinears(
                     cfg.n_instances,
                     decoder_sizes[i],
                     decoder_sizes[i + 1],
                     weight_norm_dim=0,
-                    act=None if i >= (depth - 2) else nn.ReLU(),
-                    bias=i >= (depth - 2),
                 )
             )
+
+        # mixer: mix the layers
+        self.decoder += [
+            Rearrange('b l f -> b (l f)'),
+            nn.Linear(
+                decoder_sizes[-2]*cfg.n_instances,
+                decoder_sizes[-2]*cfg.n_instances,
+            ),
+            Rearrange('b (l f) -> b l f', l=cfg.n_instances),
+        ]
+
+        # final layer
+        self.decoder.append(
+            NormedLinears(
+                cfg.n_instances,
+                decoder_sizes[-2],
+                cfg.n_input_ae,
+                bias=True,
+                act=None,
+            )
+        )
+
         self.decoder = nn.Sequential(*self.decoder)
 
     def forward(self, x):

@@ -43,9 +43,7 @@ class Tokenizer(nn.Module):
         self.tokens_per_layer = tokens_per_layer
 
         self.encoder = encoder
-        # self.pre_quant_conv = torch.nn.Conv2d(encoder.config.z_channels, embed_dim, 1)
         self.embedding = nn.Embedding(vocab_size, embed_dim)
-        # self.post_quant_conv = torch.nn.Conv2d(embed_dim, decoder.config.z_channels, 1)
         self.decoder = decoder
         self.embedding.weight.data.uniform_(-1.0 / vocab_size, 1.0 / vocab_size)
 
@@ -56,7 +54,6 @@ class Tokenizer(nn.Module):
         return outputs.z, outputs.z_quantized, reconstructions
 
     def compute_loss(self, x: Input, **kwargs: Any) -> LossWithIntermediateLosses:
-        # observations = self.preprocess_input(rearrange(batch['observations'], 'b t c h w -> (b t) c h w'))
         z, z_quantized, x_rec = self(x)
 
         # Codebook loss. Notes:
@@ -73,8 +70,6 @@ class Tokenizer(nn.Module):
         z, _ = self.encoder(x)
 
         z = rearrange(z, 'b l (a v) -> b l a v', v=self.tokens_per_layer)
-
-        # z = self.pre_quant_conv(z) just 1x1 z_channels -> embed_dim
         b, l, e, v = z.shape
         z_flattened = rearrange(z, 'b l a v -> (b l v) a')
         dist_to_embeddings = torch.sum(z_flattened ** 2, dim=1, keepdim=True) + torch.sum(self.embedding.weight**2, dim=1) - 2 * torch.matmul(z_flattened, self.embedding.weight.t())

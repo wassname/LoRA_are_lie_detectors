@@ -1041,3 +1041,10 @@ oh they put channels first for z_Q . oh wait that's just for the decoder, I want
 TODO: also I should compress layers! And maybe I need to take the diff too? well I shouldn't since they are already residual?
 
 also removed relu from end of encoder
+
+
+Ok so it kinda works. But I think I need to mix the layers at the end. How to do that? At the end of the encoder and beggining of the decoder
+
+So we have [batch layers features] as input
+then we use a series of linear to -> batch layer latent
+and finally we want to mix layer and latent... hmmm best to do it at a bottleneck
