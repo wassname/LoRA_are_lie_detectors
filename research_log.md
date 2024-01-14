@@ -1036,3 +1036,8 @@ while we have [512, 1, 1]
 - so make encoder output latent*tokens_per_layer and then we can just rearrange?
 
 oh they put channels first for z_Q . oh wait that's just for the decoder, I want them the other way around
+
+
+TODO: also I should compress layers! And maybe I need to take the diff too? well I shouldn't since they are already residual?
+
+also removed relu from end of encoder
