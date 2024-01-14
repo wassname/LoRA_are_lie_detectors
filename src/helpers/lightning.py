@@ -55,5 +55,6 @@ def plot_hist(df_hist, allowlist=None, logy=False):
             continue
         plt.figure(figsize=(5, 2))
         df_hist[[c for c in df_hist.columns if c.endswith(suffix) and '/' in c]].plot(title=suffix, style='.', logy=logy, ax=plt.gca())
+        # plt.yscale('log')
         plt.title(suffix)   
         plt.show()

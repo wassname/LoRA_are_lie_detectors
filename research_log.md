@@ -938,3 +938,101 @@ decoding takes in z_quant and outputs reconstructed tensor
 What if I just use the IRIS tokenizer??
 How init?
 How loss? It has it's own codebook loss!
+
+# Trying an IRIS like tokenized VAE
+
+
+- [x] get tokenzier initiatest
+- [ ] encode decode x
+- [ ] get loss
+
+> Given groups=1, weight of size [64, 3, 3, 3], expected input[1, 32, 4, 1792] to have 3 channels, but got 32 channels instead
+
+
+So it's expecting 3, 64, 64. Channel, image image. But I don't have anything that suits a conv. So mabye I need to change the net?
+- It takes in [3, 64, 64]
+- It outputs [1, 512, 4, 4] 
+- then pre_quant_conv, a 1x2 conv, projects it to embed_dim=512
+- then we flatten it so that the height and width are folder into the batch
+- while my x s actually torch.Size([32, 4, 1792])
+- so I can just replace it with my encoder? mayvbe put attn blocks in?
+
+  =================================================================================================================================================
+  Layer (type:depth-idx)                        Input Shape               Output Shape              Param #                   Kernel Shape
+  =================================================================================================================================================
+  Encoder                                       [1, 3, 64, 64]            [1, 512, 4, 4]            --                        --
+  ├─Conv2d: 1-1                                 [1, 3, 64, 64]            [1, 64, 64, 64]           1,792                     [3, 3]
+  ├─ModuleList: 1-2                             --                        --                        --                        --
+  │    └─Module: 2-1                            --                        --                        --                        --
+  │    │    └─ModuleList: 3-1                   --                        --                        148,224                   --
+  │    │    └─Downsample: 3-2                   [1, 64, 64, 64]           [1, 64, 32, 32]           36,928                    --
+  │    └─Module: 2-2                            --                        --                        --                        --
+  │    │    └─ModuleList: 3-3                   --                        --                        148,224                   --
+  │    │    └─Downsample: 3-4                   [1, 64, 32, 32]           [1, 64, 16, 16]           36,928                    --
+  │    └─Module: 2-3                            --                        --                        --                        --
+  │    │    └─ModuleList: 3-7                   --                        --                        (recursive)               --
+  │    │    └─ModuleList: 3-8                   --                        --                        (recursive)               --
+  │    │    └─ModuleList: 3-7                   --                        --                        (recursive)               --
+  │    │    └─ModuleList: 3-8                   --                        --                        (recursive)               --
+  │    │    └─Downsample: 3-9                   [1, 64, 16, 16]           [1, 64, 8, 8]             36,928                    --
+  │    └─Module: 2-4                            --                        --                        --                        --
+  │    │    └─ModuleList: 3-12                  --                        --                        (recursive)               --
+  │    │    └─ModuleList: 3-13                  --                        --                        (recursive)               --
+  │    │    └─ModuleList: 3-12                  --                        --                        (recursive)               --
+  │    │    └─ModuleList: 3-13                  --                        --                        (recursive)               --
+  │    │    └─Downsample: 3-14                  [1, 64, 8, 8]             [1, 64, 4, 4]             36,928                    --
+  │    └─Module: 2-5                            --                        --                        --                        --
+  │    │    └─ModuleList: 3-15                  --                        --                        148,224                   --
+  ├─Module: 1-3                                 --                        --                        --                        --
+  │    └─ResnetBlock: 2-6                       [1, 64, 4, 4]             [1, 64, 4, 4]             --                        --
+  │    │    └─GroupNorm: 3-16                   [1, 64, 4, 4]             [1, 64, 4, 4]             128                       --
+  │    │    └─Conv2d: 3-17                      [1, 64, 4, 4]             [1, 64, 4, 4]             36,928                    [3, 3]
+  │    │    └─GroupNorm: 3-18                   [1, 64, 4, 4]             [1, 64, 4, 4]             128                       --
+  │    │    └─Dropout: 3-19                     [1, 64, 4, 4]             [1, 64, 4, 4]             --                        --
+  │    │    └─Conv2d: 3-20                      [1, 64, 4, 4]             [1, 64, 4, 4]             36,928                    [3, 3]
+  │    └─AttnBlock: 2-7                         [1, 64, 4, 4]             [1, 64, 4, 4]             --                        --
+  │    │    └─GroupNorm: 3-21                   [1, 64, 4, 4]             [1, 64, 4, 4]             128                       --
+  │    │    └─Conv2d: 3-22                      [1, 64, 4, 4]             [1, 64, 4, 4]             4,160                     [1, 1]
+  │    │    └─Conv2d: 3-23                      [1, 64, 4, 4]             [1, 64, 4, 4]             4,160                     [1, 1]
+  │    │    └─Conv2d: 3-24                      [1, 64, 4, 4]             [1, 64, 4, 4]             4,160                     [1, 1]
+  │    │    └─Conv2d: 3-25                      [1, 64, 4, 4]             [1, 64, 4, 4]             4,160                     [1, 1]
+  │    └─ResnetBlock: 2-8                       [1, 64, 4, 4]             [1, 64, 4, 4]             --                        --
+  │    │    └─GroupNorm: 3-26                   [1, 64, 4, 4]             [1, 64, 4, 4]             128                       --
+  │    │    └─Conv2d: 3-27                      [1, 64, 4, 4]             [1, 64, 4, 4]             36,928                    [3, 3]
+  │    │    └─GroupNorm: 3-28                   [1, 64, 4, 4]             [1, 64, 4, 4]             128                       --
+  │    │    └─Dropout: 3-29                     [1, 64, 4, 4]             [1, 64, 4, 4]             --                        --
+  │    │    └─Conv2d: 3-30                      [1, 64, 4, 4]             [1, 64, 4, 4]             36,928                    [3, 3]
+  ├─GroupNorm: 1-4                              [1, 64, 4, 4]             [1, 64, 4, 4]             128                       --
+  ├─Conv2d: 1-5                                 [1, 64, 4, 4]             [1, 512, 4, 4]            295,424                   [3, 3]
+  =================================================================================================================================================
+  Total params: 1,418,240
+  Trainable params: 1,418,240
+  Non-trainable params: 0
+  Total mult-adds (Units.MEGABYTES): 881.49
+  =================================================================================================================================================
+  Input size (MB): 0.05
+  Forward/backward pass size (MB): 26.96
+  Params size (MB): 5.67
+  Estimated Total Size (MB): 32.68
+  =================================================================================================================================================
+
+# 2024-01-14 14:07:07
+
+OK I got it runnning. But it's not learning
+
+misake?
+- mixing vocab and dim?
+- skipping pre_quant_conv: z_channels -> embed_dim, and vice versa
+- I also skipped the reshape. So I'm really treating each layer independantly
+
+
+Hmm I have 1/512 tokens per layer! The orig paper has 4 per image?
+
+OK so 
+
+FIXME :bug: they should all be diff it's [batch, layer]
+ok so the original had 4 inner pixels and one token per pixel [1, 64, 4, 4]
+while we have [512, 1, 1]
+- so make encoder output latent*tokens_per_layer and then we can just rearrange?
+
+oh they put channels first for z_Q . oh wait that's just for the decoder, I want them the other way around

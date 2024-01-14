@@ -73,6 +73,9 @@ class NormedLinears(nn.Module):
         if self.act is not None:
             x = self.act(x)
         return x
+    
+    def __rep__(self):
+        return f"NormedLinears({self.linears[0]})"
 
 
 class AffineInstanceNorm1d(nn.BatchNorm1d):
@@ -105,32 +108,41 @@ class Affines(nn.Module):
 
     def inv(self, x: Float[Tensor, "batch_size n_instances n_hidden"]) -> Tensor:
         return t.stack([m.inv(x[:, i]) for i, m in enumerate(self.affines)], dim=1)
+    
 
-
-class AutoEncoder(nn.Module):
-    def __init__(
-        self,
-        cfg: AutoEncoderConfig,
-        importance_matrix: Float[Tensor, "n_instances n_input_ae"] = None,
-    ):
+class Encoder(nn.Module):
+    def __init__(self, cfg: AutoEncoderConfig):
         super().__init__()
         self.cfg = cfg
-        self.importance_matrix = importance_matrix
-
-        # instead of a tied bias, we use a batch norm type module to track and adjust for the training mean and std. We also have an inverse function to undo the normalization.
-        self.norm = Affines(cfg.n_instances, cfg.n_input_ae)
 
         encoder_sizes = [cfg.n_input_ae] + cfg.encoder_sizes + [cfg.n_hidden_ae]
-        decoder_sizes = encoder_sizes[::-1]
         depth = len(encoder_sizes)
 
         self.encoder = []
         for i in range(depth - 1):
             self.encoder.append(
                 NormedLinears(cfg.n_instances, encoder_sizes[i], encoder_sizes[i + 1], 
-                              bias=(i <= (depth - 2)) & (i>1),)
+                              bias=(i <= (depth - 2)) & (i>1),
+                              act=None if i >= (depth - 2) else nn.ReLU(),
+                              )
             )
         self.encoder = nn.Sequential(*self.encoder)
+
+    def forward(self, x):
+        layer_outputs = []
+        for i, m in enumerate(self.encoder):
+            x = m(x)
+            layer_outputs.append(x)
+        return x, layer_outputs
+    
+
+class Decoder(nn.Module):
+    def __init__(self, cfg: AutoEncoderConfig):
+        super().__init__()
+        self.cfg = cfg
+        encoder_sizes = [cfg.n_input_ae] + cfg.encoder_sizes + [cfg.n_hidden_ae]
+        decoder_sizes = encoder_sizes[::-1]
+        depth = len(decoder_sizes)
 
         self.decoder = []
         for i in range(depth - 1):
@@ -146,6 +158,31 @@ class AutoEncoder(nn.Module):
             )
         self.decoder = nn.Sequential(*self.decoder)
 
+    def forward(self, x):
+        layer_outputs = []
+        for i, m in enumerate(self.decoder):
+            x = m(x)
+            layer_outputs.append(x)
+        return x, layer_outputs
+
+
+class AutoEncoder(nn.Module):
+    def __init__(
+        self,
+        cfg: AutoEncoderConfig,
+        importance_matrix: Float[Tensor, "n_instances n_input_ae"] = None,
+    ):
+        super().__init__()
+        self.cfg = cfg
+        self.importance_matrix = importance_matrix
+
+        # instead of a tied bias, we use a batch norm type module to track and adjust for the training mean and std. We also have an inverse function to undo the normalization.
+        self.norm = Affines(cfg.n_instances, cfg.n_input_ae)
+
+        self.encoder = Encoder(cfg)
+        self.decoder = Decoder(cfg)
+
+
     def forward(self, h: Float[Tensor, "batch_size n_instances n_hidden"]):
         # Compute activations
         depth = len(self.cfg.encoder_sizes)
@@ -156,7 +193,6 @@ class AutoEncoder(nn.Module):
         l1_raw = []
         for i, m in enumerate(self.encoder):
             x = m(x)
-
             l1 = calc_hoyer(x, pow=1.5)
             l1_raw.append(l1)
             l1_losses.append (
