@@ -789,3 +789,152 @@ SAE improvements:
 
 
 one idea it to due batch norm with affine false, at input and output tied bias
+
+# 2024-01-13 16:22:35
+
+- does a deeper sae help?
+  - is there a loss that can better encourage linear represenation?
+- does the importance matrix help?
+
+Diagnostic:
+- can the probe even overfit? sometimes. it really tells us if there is too much sparsity!
+- sparsity by layer
+- it really does seem to chose one layer
+
+
+What is deep hoyer? just
+
+```py
+for name, param in model.named_parameters():
+    if param.requires_grad and len(list(param.size()))>1 and 'weight' in name and torch.sum(torch.abs(param))>0:
+        if reg_type==1:    # l1
+            reg += torch.sum(torch.sqrt(torch.sum(param**2,0)))+torch.sum(torch.sqrt(torch.sum(param**2,1)))
+        elif reg_type==2: # Hoyer
+            reg += (torch.sum(torch.sqrt(torch.sum(param**2,0)))+torch.sum(torch.sqrt(torch.sum(param**2,1))))/torch.sqrt(torch.sum(param**2))
+        elif reg_type==3: # HS
+            reg += ( (torch.sum(torch.sqrt(torch.sum(param**2,0)))**2) + (torch.sum(torch.sqrt(torch.sum(param**2,1)))**2) )/torch.sum(param**2)    
+        else: # None
+            reg = 0.0     
+```
+
+```py
+
+(param.pow(2).sum(0).sqrt().sum() + param.pow(2).sum(1).sqrt().sum()) / param.pow(2).sum().sqrt()
+
+```
+
+# 2024-01-14 06:40:48
+
+On l1 vs l2 loss.
+
+There are a few ideas here. 
+
+We have the problem that they use an l1_coeff hyperparameter to balance, but they are set in such way that they are variant to the latent and input size in differen't ways. So anytime and archetecture changes we need to find the new balance!
+
+One solutions would be to mean over the differen't dimensions not sum. But we really want the total information, not the mean informaiton. This is because we are trying to compress information into a bottleneck, yet the mean doesn't tell us much. Using 10% of 1 neuron, is a lot diffeen't that 10% of a million neurons!
+
+We also have one that grows faster (l2>l1), so we have a natural balance where l2 is optimized at first, untill it gets clsoe to l1, then l1 takes over. This is good, but it makes the balance worse, since archetecture shifts make l2 vary to the power of 2, but not l1.
+
+Ideally we make them both invariant and we don't need a hyperparameter at all!
+
+DeepHoyer had a go at this but it was for weight sparsity not activation sparsity.
+
+ideas
+>  techniques like β-VAE introduce a hyperparameter that balances the latent channel capacity and independence constraints.
+- use sparse embedding (need sparse adam) optim.SparseAdam 
+torch.nn.Embedding(sparse=True, max_norm=1)
+- tokenize? this seems too large, but transformers can handle it, how come? typicall it's not sparse but perhaps I can look at how IRIS does it?
+
+
+# Tokenize? 2024-01-14 09:44:27
+
+
+- delta-IRIS 
+  - > We follow DreamerV3 in using discrete regression with two-hot targets and symlog scaling for rewards prediction. 
+    - not relevant?
+      - So two hot target are 0, 1, 2. E.g. taget transaition tokens
+        - - two-hot latent space?? I guess that means it turns into [2, 1, 0, 1]. I'm assuming neg vs pos?
+      - symlog is just for reward. 
+
+### Two hot?
+
+> Twohot encoding is a generalization of onehot encoding to continuous values. It produces a vector of length |B| where all elements are 0 except for the two entries closest to the encoded continuous number, at positions k and k + 1. These two entries sum up to 1, with more weight given to the entry that is closer to the encoded number
+> - https://arxiv.org/pdf/2301.04104v1.pdf
+
+Code samples
+- https://github.dev/Eclectic-Sheep/sheeprl/blob/52f49be5971c5753e18bdf328d3035334fe688f1/sheeprl/utils/distribution.py#L224
+
+My own summary:
+
+```python
+
+def calc_twohot(x, B):
+    """
+    x shape:(n_vals, ) is tensor of values
+    B shape:(n_bins, ) is tensor of bin values
+    returns a twohot tensor of shape (n_vals, n_bins)
+
+    can verify this method is correct with:
+     - calc_twohot(x, B)@B == x # expected value reconstructs x
+     - (calc_twohot(x, B)>0).sum(dim=-1) == 2 # only two bins are hot
+
+    code from https://github.com/RyanNavillus/PPO-v3/blob/b81083a0f41e6b74245b1e130e32c044fd34cc3e/ppo_v3/ppo_envpool_tricks_dmc.py#L125
+    """
+    twohot = torch.zeros((x.shape+B.shape), dtype=x.dtype, device=x.device)
+    k1 = (B[None, :] <= x[:, None]).sum(dim=-1)-1
+    k2 = k1+1
+    k1 = torch.clip(k1, 0, len(B) - 1)
+    k2 = torch.clip(k2, 0, len(B) - 1)
+
+    # Handle k1 == k2 case
+    equal = (k1 == k2)
+    dist_to_below = torch.where(equal, 1, torch.abs(B[k1] - x))
+    dist_to_above = torch.where(equal, 0, torch.abs(B[k2] - x))
+
+    # Assign values to two-hot tensor
+    total = dist_to_above + dist_to_below
+    weight_below = dist_to_above / total
+    weight_above = dist_to_below / total
+    x_range = np.arange(len(x))
+    twohot[x_range, k1] = weight_below   # assign left
+    twohot[x_range, k2] = weight_above   # assign right
+    return twohot
+
+```
+
+References:
+- https://github.com/RyanNavillus/PPO-v3/blob/b81083a0f41e6b74245b1e130e32c044fd34cc3e/ppo_v3/ppo_envpool_tricks_dmc.py#L125
+-  https://github.dev/Eclectic-Sheep/sheeprl/blob/52f49be5971c5753e18bdf328d3035334fe688f1/sheeprl/utils/distribution.py#L224
+-  https://github.com/DuaneNielsen/dreamerv3/blob/72f86b633334dc39b75376ea7e26e79536072279/dists.py#L111
+-  https://github.com/google-deepmind/rlax/blob/df8e6006365ed3cba366747a00f0d1fd25a406e7/rlax/_src/transforms.py#L92
+
+
+# Embedding?
+
+- use sparse embedding (need sparse adam) optim.SparseAdam 
+torch.nn.Embedding(sparse=True, max_norm=1)
+
+
+# Tokenizer
+
+How does it work in IRIS? https://github.dev/eloialonso/iris
+
+tokenizer take in a tensor
+`TokenizerEncoderOutput(z, z_quant, tokens) = tokenizer.encode(tensor)`
+
+```
+# encoder network
+z = encoder(x)
+# turn to dist, reusing embeddings/
+dist = z.pow(2).sum(1) + embedding.weight.pow(2).sum(1) - 2 * z * embedding.weight.T # complex?
+# tokens
+tokens = dist.argmin()
+# embed
+z_q = embedding(tokens)
+```
+
+decoding takes in z_quant and outputs reconstructed tensor
+
+What if I just use the IRIS tokenizer??
+How init?
+How loss? It has it's own codebook loss!

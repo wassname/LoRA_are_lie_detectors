@@ -157,7 +157,7 @@ class AutoEncoder(nn.Module):
         for i, m in enumerate(self.encoder):
             x = m(x)
 
-            l1 = calc_l1_loss(x)
+            l1 = calc_hoyer(x, pow=1.5)
             l1_raw.append(l1)
             l1_losses.append (
                 l1 / (depth - i + 1) ** 2
@@ -167,12 +167,13 @@ class AutoEncoder(nn.Module):
         for i, m in enumerate(self.decoder):
             x = m(x)
             if i<depth-1:
-                l1 = calc_l1_loss(x)
+                l1 = calc_hoyer(x, pow=1.5)
                 l1_raw.append(l1)
                 l1_losses.append(l1 / (i + 2) ** 2)
         h_reconstructed = self.norm.inv(x)
 
-        l1_loss = t.stack(l1_losses, dim=1).mean(1)
+        # Mean over layers
+        l1_loss = t.stack(l1_losses, 1).mean(1)
 
         # h_reconstructed = self.norm.inv(self.decoder(acts))
 
@@ -181,10 +182,11 @@ class AutoEncoder(nn.Module):
         if self.importance_matrix is not None:
             importance_matrix = self.importance_matrix[None, :].to(h_err.device)
             h_err = h_err * importance_matrix
-        l2_loss = calc_l2_loss(h_err)  # shape [batch_size n_instances features]
+        l2_loss = calc_hoyer(h_err, pow=2)  # shape [batch_size n_instances features]
         # l1_loss = acts.abs().mean(2).sum(1) # shape [batch_size n_instances n_latent]
         loss = (self.cfg.l1_coeff * l1_loss + l2_loss)
-        loss = einops.reduce(loss, 'b n -> ', 'mean')
+        # print(l1_loss, l2_loss)
+        loss = einops.reduce(loss, 'b -> ', 'mean')
 
         l1_losses = t.tensor([l1.mean().item() for l1 in l1_losses])
         l1_raw = t.tensor( [l1.mean().item() for l1 in l1_raw])
@@ -213,3 +215,12 @@ def calc_l1_loss(x: Float[Tensor, "batch_size n_instances n_latent"]):
 
 def calc_l2_loss(h_err: Float[Tensor, "batch_size n_instances features"]):
     return einops.reduce(h_err.pow(2), 'b n f -> b n', 'sum')
+
+def calc_hoyer(x, pow=2):
+    """
+    https://github.com/yanghr/DeepHoyer
+    """
+    a = x.pow(pow).sum(1).pow(1/pow).sum(1) 
+    b = x.pow(pow).sum(2).pow(1/pow).sum(1)
+    d = x.pow(pow).sum(2).sum(1).pow(1/pow)
+    return (a+b)/d
