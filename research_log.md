@@ -1048,3 +1048,11 @@ Ok so it kinda works. But I think I need to mix the layers at the end. How to do
 So we have [batch layers features] as input
 then we use a series of linear to -> batch layer latent
 and finally we want to mix layer and latent... hmmm best to do it at a bottleneck
+
+# 2024-01-16 07:56:24
+
+One interesting observation is that this tokenized SAE... allow the probe to overfit even with just 1 token per layer. That doesn't seem like enought information to overfit! What does the token represent? I suppose I can reconstruct last layer hidden states then decode?
+
+It actually promising because it seems like the SAe is working very well, encoding multiple usefull features. Because with multiple usefull features the model could overfit (e.g. truth vs instruction following vs sentiment vs following examles), but without them it couldn't. So this might be a success! How do I show this? Well I can follow the representation engienering paper.
+
+I think another conclusioon is that my method of getting the importance matrix doesn't work well.
