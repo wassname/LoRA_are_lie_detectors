@@ -1060,7 +1060,7 @@ I think another conclusioon is that my method of getting the importance matrix d
 # 2024-01-19 11:01:20
 
 - [x] Why is acc weird:
-  - [ ] why do may confusion matix not add up?
+  - [x] why do may confusion matix not add up?
   - [ ] and add balance
 - examine the ins and outs to acc and auroc in pl and metrics
 ways to debug latent?
@@ -1069,13 +1069,11 @@ ways to debug latent?
 - reconstruction %
 
 
-AH! I can't sigmid with emved only as everything is >0?
+:bug: AH! I can't sigmid with emved only as everything is >0?
+:bug: A! we are still predicting whether the adapter is more true, not just if it's true? not ideal lol
 
-
-bug we are still predicting whether the adapter is more true, not just if it's true? not ideal lol
 # I need a quick probe train...
 
+I'll have a mode to reload the ae I guess
 
-
-
-new pl
+- [ ] check balance

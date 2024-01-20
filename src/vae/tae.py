@@ -39,12 +39,15 @@ class PL_TAE(PLBase):
         self.save_hyperparameters()
         self.importance_matrix = importance_matrix
 
-        vocab_size = n_latent
-        embed_dim = n_latent
+        self.vocab_size = vocab_size = n_latent
+        self.embed_dim = embed_dim = n_latent
 
 
         n_layers, n_channels = c_in
+        
+        # move to ae?
         self.norm = Affines(n_layers, n_channels)
+        
         self.ae_cfg = AutoEncoderConfig(
             n_instances=n_layers,
             n_input_ae=n_channels,
@@ -73,10 +76,10 @@ class PL_TAE(PLBase):
         # self.probe_embed = nn.Embedding(vocab_size, probe_embedd_dim, 
         #                                 max_norm=1.0
         #                                 )
-        n = n_layers * tokens_per_layer * probe_embedd_dim
+        
         # self.probe_embed.weight.data.uniform_(-1.0 / vocab_size, 1.0 / vocab_size)
 
-        self.only_emb = True
+        self.only_emb = False
         
         if self.only_emb:
             self.head = nn.Sequential(
@@ -86,17 +89,18 @@ class PL_TAE(PLBase):
                 Reduce("b l h v -> b", "max"),
             )
         else:
-            
+            n = n_layers * tokens_per_layer * probe_embedd_dim
             self.head = nn.Sequential(
                 nn.Embedding(vocab_size, probe_embedd_dim, 
-                                            max_norm=1.0
+                                            # max_norm=1.0
                                             ),
-                Rearrange("b l h v -> b (l h v)"),                
+                Rearrange("b l h v -> b (l h v)"),   
                 # LinBnDrop(n*embed_dim2, n, bn=True, dropout=dropout),
                 # LinBnDrop(n, n, bn=True, dropout=dropout),
                 # LinBnDrop(n, n, dropout=dropout, bn=False),
                 # LinBnDrop(n // 4, n // 12, bn=False),
                 nn.Linear(n, 1),
+                Rearrange("b l -> (b l)"), 
             )
         self._ae_mode = True
 
