@@ -1056,3 +1056,26 @@ One interesting observation is that this tokenized SAE... allow the probe to ove
 It actually promising because it seems like the SAe is working very well, encoding multiple usefull features. Because with multiple usefull features the model could overfit (e.g. truth vs instruction following vs sentiment vs following examles), but without them it couldn't. So this might be a success! How do I show this? Well I can follow the representation engienering paper.
 
 I think another conclusioon is that my method of getting the importance matrix doesn't work well.
+
+# 2024-01-19 11:01:20
+
+- [x] Why is acc weird:
+  - [ ] why do may confusion matix not add up?
+  - [ ] and add balance
+- examine the ins and outs to acc and auroc in pl and metrics
+ways to debug latent?
+- ideally I would reconstruct tokens... maybe I can do that for the last layer? 
+- sparsity
+- reconstruction %
+
+
+AH! I can't sigmid with emved only as everything is >0?
+
+
+bug we are still predicting whether the adapter is more true, not just if it's true? not ideal lol
+# I need a quick probe train...
+
+
+
+
+new pl

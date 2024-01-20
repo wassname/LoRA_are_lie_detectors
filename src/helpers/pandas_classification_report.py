@@ -33,6 +33,8 @@ def classification_report(*args, **kwargs):
     out_df[["support"]]= out_df[["support"]].apply(lambda x: x.astype(int))
     # Add suport to avg
     out_df.loc['accuracy', 'support'] = out_df.loc['weighted avg', 'support']
+    
+    out_df = out_df.style.set_caption("classification_report")
     return out_df
 
 
@@ -55,5 +57,10 @@ def confusion_matrix(*args, target_names, **kwargs):
     | cls_end  |      0.029 |     0.857 |    0.114 |
     | cls_up   |      0.048 |     0.699 |    0.253 |
     """
+
     cm = sklearn.metrics.confusion_matrix(*args, **kwargs)
-    return pd.DataFrame(cm, columns=target_names, index=target_names)
+    df = pd.DataFrame(cm, columns=target_names, index=target_names)
+    df.index.name = 'Labels'
+    df.columns.name = 'Pred'
+    df = df.style.set_caption("confusion_matrix")
+    return df
