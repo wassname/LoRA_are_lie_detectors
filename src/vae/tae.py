@@ -73,35 +73,43 @@ class PL_TAE(PLBase):
             decoder=decoder,
         )
 
-        # self.probe_embed = nn.Embedding(vocab_size, probe_embedd_dim, 
-        #                                 max_norm=1.0
-        #                                 )
-        
-        # self.probe_embed.weight.data.uniform_(-1.0 / vocab_size, 1.0 / vocab_size)
 
-        self.only_emb = False
+        # self.only_emb = False
         
-        if self.only_emb:
-            self.head = nn.Sequential(
-                nn.Embedding(vocab_size, probe_embedd_dim, 
-                                            max_norm=1.0
-                                            ),
-                Reduce("b l h v -> b", "max"),
-            )
-        else:
-            n = n_layers * tokens_per_layer * probe_embedd_dim
-            self.head = nn.Sequential(
-                nn.Embedding(vocab_size, probe_embedd_dim, 
-                                            # max_norm=1.0
-                                            ),
-                Rearrange("b l h v -> b (l h v)"),   
-                # LinBnDrop(n*embed_dim2, n, bn=True, dropout=dropout),
-                # LinBnDrop(n, n, bn=True, dropout=dropout),
-                # LinBnDrop(n, n, dropout=dropout, bn=False),
-                # LinBnDrop(n // 4, n // 12, bn=False),
-                nn.Linear(n, 1),
-                Rearrange("b l -> (b l)"), 
-            )
+        # if self.only_emb:
+        #     self.head = nn.Sequential(
+        #         nn.Embedding(vocab_size, probe_embedd_dim, 
+        #                                     max_norm=1.0
+        #                                     ),
+        #         Reduce("b l h v -> b", "max"),
+        #     )
+        # else:
+        #     n = n_layers * tokens_per_layer * probe_embedd_dim
+        #     self.head = nn.Sequential(
+        #         nn.Embedding(vocab_size, probe_embedd_dim, 
+        #                                     # max_norm=1.0
+        #                                     ),
+        #         Rearrange("b l h v -> b (l h v)"),   
+        #         # LinBnDrop(n*embed_dim2, n, bn=True, dropout=dropout),
+        #         # LinBnDrop(n, n, bn=True, dropout=dropout),
+        #         # LinBnDrop(n, n, dropout=dropout, bn=False),
+        #         # LinBnDrop(n // 4, n // 12, bn=False),
+        #         nn.Linear(n, 1),
+        #         Rearrange("b l -> (b l)"), 
+        #     )
+            
+        # use z_q
+        probe_embedd_dim = vocab_size
+        n = n_layers * tokens_per_layer * probe_embedd_dim
+        self.head = nn.Sequential(
+            Rearrange("b l h v -> b (l h v)"),   
+            # LinBnDrop(n*embed_dim2, n, bn=True, dropout=dropout),
+            # LinBnDrop(n, n, bn=True, dropout=dropout),
+            # LinBnDrop(n, n, dropout=dropout, bn=False),
+            # LinBnDrop(n // 4, n // 12, bn=False),
+            nn.Linear(n, 1),
+            Rearrange("b l -> (b l)"), 
+        )
         self._ae_mode = True
 
     def ae_mode(self, mode=0):
@@ -130,12 +138,16 @@ class PL_TAE(PLBase):
 
         # we want a probe tokenizer. reusing the decoder hurts performance
         # latent_decoder = self.ae.decode(z_q)
-        latent_probe = self.head[0](tokens)
-        pred = self.head(tokens)#.squeeze(1)
+        # latent_probe = self.head[0](tokens)
+        # pred = self.head(tokens)#.squeeze(1)
+        
+        pred = self.head(z_q)
+        
+        
         return dict(
             pred=pred,
             loss=loss,
-            latent_probe=latent_probe,
+            # latent_probe=latent_probe,
             z=z, 
             z_q=z_q,
             tokens=tokens,
@@ -156,10 +168,10 @@ class PL_TAE(PLBase):
         
         
         # if using head
-        if self.only_emb:
-            y_probs = logits
-        else:
-            y_probs = F.sigmoid(logits)
+        # if self.only_emb:
+        #     y_probs = logits
+        # else:
+        y_probs = F.sigmoid(logits)
         
         assert (y_probs >= 0).all(), "y_probs should be positive"
         assert (y_probs <= 1).all(), "y_probs should be less than 1"

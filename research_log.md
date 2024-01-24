@@ -1077,3 +1077,7 @@ ways to debug latent?
 I'll have a mode to reload the ae I guess
 
 - [ ] check balance
+
+# 2024-01-25 05:26:56
+
+Fianlly I get time to work on this again
