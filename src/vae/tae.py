@@ -1,19 +1,19 @@
 from einops.layers.torch import Rearrange, Reduce
+from einops import reduce
 from src.iris.tokenizer import Tokenizer
 from src.iris.nets import EncoderDecoderConfig, Encoder, Decoder
 from src.vae.conv_inception import (
     LinBnDrop,
     PLBase,
     recursive_requires_grad,
-    accuracy,
-    auroc,
 )
+from torchmetrics.functional import accuracy, auroc
 from src.vae.sae2 import AutoEncoderConfig, Encoder, Decoder, Affines
 from src.iris.tokenizer import TokenizedAutoEncoder
-from einops import reduce
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torchmetrics import AUROC
 
 class PL_TAE(PLBase):
     def __init__(
@@ -49,10 +49,10 @@ class PL_TAE(PLBase):
         )
 
     def forward(self, x):
-        o = self.ae.encode(x)
+        o = self.tae.tokenizer.encode(x)
         z, z_q, tokens = o.z, o.z_quantized, o.tokens
-        h_rec = self.ae.decode(z_q)
-        losses = self.ae.compute_loss(x)
+        h_rec = self.tae.tokenizer.decode(z_q)
+        losses = self.tae.tokenizer.compute_loss(x)
         loss = losses.loss_total
         
         return dict(
@@ -96,17 +96,14 @@ class PL_TAE(PLBase):
 
 
 
-class PL_TAEProbe(PLBase):
+class PL_TAEProbeBase(PLBase):
     def __init__(
         self,
-        c_in,
         tae: TokenizedAutoEncoder,
         steps_per_epoch,
         max_epochs,
         lr=4e-3,
         weight_decay=0,
-        dropout=0,
-        probe_embedd_dim=3,
         **kwargs,
     ):
         super().__init__(
@@ -115,66 +112,30 @@ class PL_TAEProbe(PLBase):
             lr=lr,
             weight_decay=weight_decay,
         )
-        self.save_hyperparameters(exclude=["tae"])
+        self.save_hyperparameters(ignore=["tae"])
         self.tae = tae
         
         # extract config from tokenized autoencoder
-        tokens_per_layer = tae.tokenizer.tokens_per_layer
-        embed_dim = tae.tokenizer.embed_dim
-        vocab_size = tae.tokenizer.vocab_size
-        n_layers, n_channels = c_in
+        # tokens_per_layer = tae.tokenizer.tokens_per_layer
+        # vocab_size = tae.tokenizer.vocab_size
+        # n_layers, n_channels = c_in
+        # n_feats = n_layers * tokens_per_layer * vocab_size
         
-        # self.tae.encoder.cfg
-
-        # self.vocab_size = vocab_size = n_latent
-        # self.embed_dim = embed_dim = n_latent
-
-
-        # if self.only_emb:
-        #     self.head = nn.Sequential(
-        #         nn.Embedding(vocab_size, probe_embedd_dim, 
-        #                                     max_norm=1.0
-        #                                     ),
-        #         Reduce("b l h v -> b", "max"),
-        #     )
-        # else:
-        #     n = n_layers * tokens_per_layer * probe_embedd_dim
-        #     self.head = nn.Sequential(
-        #         nn.Embedding(vocab_size, probe_embedd_dim, 
-        #                                     # max_norm=1.0
-        #                                     ),
-        #         Rearrange("b l h v -> b (l h v)"),   
-        #         # LinBnDrop(n*embed_dim2, n, bn=True, dropout=dropout),
-        #         # LinBnDrop(n, n, bn=True, dropout=dropout),
-        #         # LinBnDrop(n, n, dropout=dropout, bn=False),
-        #         # LinBnDrop(n // 4, n // 12, bn=False),
-        #         nn.Linear(n, 1),
-        #         Rearrange("b l -> (b l)"), 
-        #     )
-            
-        # use z_q?
-        n = n_layers * tokens_per_layer * vocab_size
-        self.head = nn.Sequential(
-            Rearrange("b l h v -> b (l h v)"),   
-            # LinBnDrop(n*embed_dim2, n, bn=True, dropout=dropout),
-            # LinBnDrop(n, n, bn=True, dropout=dropout),
-            # LinBnDrop(n, n, dropout=dropout, bn=False),
-            # LinBnDrop(n // 4, n // 12, bn=False),
-            nn.Linear(n, 1),
-            Rearrange("b l -> (b l)"), 
-        )
+        self.head = None
+        
+        recursive_requires_grad(tae, False)
+        
+        self.auroc_fn = {k:AUROC(task="binary") for k in ["train", "val", "test", "ood"]}
+        
+        
 
     def forward(self, x):
         with torch.no_grad():
-            o = self.ae.encode(x)
-        
+            o = self.tae.tokenizer.encode(x)
         z, z_q, tokens = o.z, o.z_quantized, o.tokens
-
-        # we want a probe tokenizer. reusing the decoder hurts performance
-        pred = self.head(tokens)
-        
-        pred = self.head(z_q)
-        return pred
+        logits = self.head(z_q)
+        y_probs = F.sigmoid(logits)
+        return y_probs
 
 
     def _step(self, batch, batch_idx, stage="train"):
@@ -185,23 +146,20 @@ class PL_TAEProbe(PLBase):
         y = y.to(device)
         x0 = x  # [..., 0]
         
-        logits = self(x0)        
-        
-        # if using head
-        if self.only_emb:
-            y_probs = logits
-        else:
-            y_probs = F.sigmoid(logits)
+        y_probs = self(x0)        
         
         assert (y_probs >= 0).all(), "y_probs should be positive"
         assert (y_probs <= 1).all(), "y_probs should be less than 1"
 
         if stage == "pred":
-            return (y_probs).float()
+            return y_probs
 
-        pred_loss = F.binary_cross_entropy_with_logits(y_probs, (y > y_thresh).float())
+        # pred_loss = F.binary_cross_entropy_with_logits(y_probs, (y > 0.5).float())
         # OR
         pred_loss = F.smooth_l1_loss(y_probs, y)
+        
+        m = self.auroc_fn[stage](y_probs, y > y_thresh)
+        self.log('train_acc_step', m)
         
         self.log(
             f"{stage}/auroc",

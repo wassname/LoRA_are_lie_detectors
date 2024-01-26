@@ -8,6 +8,7 @@ from einops import rearrange
 from random import random as rand
 
 from src.probes.pl_base import PLBase
+from src.helpers.layers import LinBnDrop, noop
 
 
 class PLRankingBase(PLBase):
@@ -41,7 +42,7 @@ class PLRankingBase(PLBase):
 
 
 
-noop = lambda x: x
+
 
 class AddCoords1d(nn.Module):
     """Add coordinates to ease position identification without modifying mean and std"""
@@ -101,19 +102,6 @@ class InceptionBlock(nn.Module):
         x = self.act(x)
         return x
     
-    
-class LinBnDrop(nn.Module):
-    "A linear layer with `nn.BatchNorm1d` and `nn.Dropout`."
-    def __init__(self, n_in, n_out, bn=True, p=0., act=None, **kwargs):
-        super().__init__()
-        self.lin = nn.Linear(n_in, n_out)
-        self.bn = nn.BatchNorm1d(n_out) if bn else noop
-        self.act = nn.ReLU() if act is None else act()
-        self.do = nn.Dropout(p) if p else noop
-
-    def forward(self, x):
-        x = self.bn(self.act(self.lin(x)))
-        return self.do(x)
     
 
 class PLConvProbeLinear(PLRankingBase):

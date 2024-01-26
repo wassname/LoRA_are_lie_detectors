@@ -46,8 +46,6 @@ class ActivationDataModule(pl.LightningDataModule):
         h = self.hparams
         # 4x faster if we make it a tensor ourselves
         ds = ds.with_format(None)
-        if name == "train":
-            ds = ds.shuffle(seed=42)
         tds = torch.utils.data.TensorDataset(
             torch.FloatTensor(ds['X']), torch.FloatTensor(ds['y']))
         

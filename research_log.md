@@ -1061,7 +1061,7 @@ I think another conclusioon is that my method of getting the importance matrix d
 
 - [x] Why is acc weird:
   - [x] why do may confusion matix not add up?
-  - [ ] and add balance
+  - [x] and add balance
 - examine the ins and outs to acc and auroc in pl and metrics
 ways to debug latent?
 - ideally I would reconstruct tokens... maybe I can do that for the last layer? 
@@ -1076,8 +1076,41 @@ ways to debug latent?
 
 I'll have a mode to reload the ae I guess
 
-- [ ] check balance
+- [x] check balance
 
 # 2024-01-25 05:26:56
 
 Fianlly I get time to work on this again
+
+ideas:
+- [x] Try with importance matrix...no
+
+- [x] try with all layers and no importance matrix
+
+  results: roc_auc
+
+  | probe            |   train |   val |   test |   ood |
+  |:-----------------|--------:|------:|-------:|------:|
+  | PL_TAEProbeZ     |   0.778 | 0.697 |  **0.665** | 0.732 |
+  | PL_TAEProbeToken |   0.866 | 0.564 |  0.594 | 0.73  |
+  | PL_TAEProbeZQ    |   0.678 | 0.561 |  0.566 | 0.621 |
+  | PL_TAEProbeEmbed |   0.589 | 0.564 |  0.534 | 0.568 |
+
+- try with all layer, imp matrix, and less tokens?
+- [ ] full hyperparam sweep
+
+
+So a smmary of research. I'm trying to take new approach to ELK, ranking, non-linear, autoencoders etc.
+
+I've tried: 
+- ranking hidden and residual state:
+- sparse autoencders
+- tokenized autoencoders
+- importance matrix
+- non linear probes
+- using the same layers as adapters
+
+And none work as well as I would expect (near100%)
+
+this makes me think that I am not looking at the internals correctly.
+

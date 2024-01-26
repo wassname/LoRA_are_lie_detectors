@@ -9,11 +9,11 @@ from einops import rearrange
 from torch import Tensor
 import torch
 import torch.nn as nn
+# from .nets import Encoder, Decoder
 from src.vae.sae2 import AutoEncoderConfig, Encoder, Decoder, Affines
 
 
 # from .lpips import LPIPS
-from .nets import Encoder, Decoder
 
 Batch = Dict[str, torch.Tensor]
 
@@ -42,6 +42,7 @@ Input = Float[Tensor, 'batch layers act']
 class Tokenizer(nn.Module):
     def __init__(self, vocab_size: int, embed_dim: int, tokens_per_layer:int , encoder: Encoder, decoder: Decoder, norm: Affines, importance_matrix=None) -> None:
         super().__init__()
+        # self.embed_dim = embed_dim
         self.vocab_size = vocab_size
         self.tokens_per_layer = tokens_per_layer
         self.importance_matrix = importance_matrix
@@ -72,7 +73,7 @@ class Tokenizer(nn.Module):
 
         reconstruction_loss = torch.abs(x - x_rec)
         if self.importance_matrix is not None:
-            reconstruction_loss = reconstruction_loss * self.importance_matrix
+            reconstruction_loss = reconstruction_loss * self.importance_matrix.to(reconstruction_loss.device)
         reconstruction_loss = reconstruction_loss.mean()
 
         return LossWithIntermediateLosses(commitment_loss=commitment_loss, reconstruction_loss=reconstruction_loss)
@@ -106,6 +107,10 @@ class Tokenizer(nn.Module):
 class TokenizedAutoEncoder(nn.Module):
     def __init__(self, c_in, vocab_size:int=512, embed_dim:int=512, tokens_per_layer:int=4, encoder_sizes=[32,32], importance_matrix=None,) -> None:
         super().__init__()
+        self.embed_dim = embed_dim
+        self.vocab_size = vocab_size
+        self.tokens_per_layer = tokens_per_layer
+        
         n_instances, n_input_ae = c_in
         self.ae_cfg = AutoEncoderConfig(
             n_instances=n_instances,

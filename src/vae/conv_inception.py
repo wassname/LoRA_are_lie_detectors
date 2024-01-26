@@ -5,8 +5,9 @@ import torch
 from torch import nn, Tensor
 from torch.nn import functional as F
 from einops import rearrange
-from src.probes.pl_ranking_probe import InceptionBlock, LinBnDrop, ConvBlock
-
+from src.probes.pl_ranking_probe import InceptionBlock, LinBnDrop
+from src.probes.pl_base import PLBase
+from torchmetrics.functional import accuracy, auroc
 
 class InceptionEncoder(nn.Module):
     def __init__(self, n_layers, n_channels, hs, c_out, ks=[7, 5, 3], dropout=0):
@@ -113,11 +114,10 @@ class AutoEncoder(nn.Module):
 
         return l1_loss, l2_loss, loss, latent, h_rec
 
-from src.probes.pl_base import PLBase
-from torchmetrics.functional import accuracy, auroc
+
 
 def recursive_requires_grad(model, mode: bool = False):
-    print(f"requires_grad: {mode}")
+    # print(f"requires_grad: {mode}")
     for param in model.parameters():
         param.requires_grad = mode
 

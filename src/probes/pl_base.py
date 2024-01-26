@@ -11,9 +11,9 @@ class PLBase(pl.LightningModule):
     """
     def __init__(self, steps_per_epoch: int, max_epochs: int, lr=4e-3, weight_decay=1e-9):
         super().__init__()
-        self.probe = None # subclasses must add this
+        self.model = None # subclasses must add this
         self.total_steps = steps_per_epoch * max_epochs
-        self.save_hyperparameters()
+        # self.save_hyperparameters(ignore=['tae'])
         
     def forward(self, x):
         return self.model(x)
