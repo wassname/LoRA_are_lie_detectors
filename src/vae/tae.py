@@ -23,7 +23,8 @@ class PL_TAE(PLBase):
         max_epochs,
         lr=4e-3,
         weight_decay=0,
-        n_latent=512,
+        embed_dim=512,
+        vocab_size=2048,
         encoder_sizes=[32, ],
         importance_matrix=None,
         tokens_per_layer=6,
@@ -41,8 +42,8 @@ class PL_TAE(PLBase):
 
         self.tae = TokenizedAutoEncoder(
             c_in,
-            vocab_size=n_latent,
-            embed_dim=n_latent,
+            vocab_size=vocab_size,
+            embed_dim=embed_dim,
             tokens_per_layer=tokens_per_layer,
             encoder_sizes=encoder_sizes,
             importance_matrix=importance_matrix,
@@ -146,8 +147,9 @@ class PL_TAEProbeBase(PLBase):
         y = y.to(device)
         x0 = x  # [..., 0]
         
-        y_probs = self(x0)        
+        y_probs = self(x0)
         
+        assert torch.isfinite(y_probs).all(), 'no nans'
         assert (y_probs >= 0).all(), "y_probs should be positive"
         assert (y_probs <= 1).all(), "y_probs should be less than 1"
 

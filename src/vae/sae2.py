@@ -27,6 +27,7 @@ class AutoEncoderConfig:
     n_instances: int
     # this is the hidden states, and the latent size
     n_input_ae: int
+    # output size
     n_hidden_ae: int
     l1_coeff: float = 0.5
 

@@ -48,6 +48,8 @@ class Tokenizer(nn.Module):
         self.importance_matrix = importance_matrix
 
         self.encoder = encoder
+        
+        # TODO reversible embedding?
         self.embedding = nn.Embedding(vocab_size, embed_dim)
         self.decoder = decoder
         self.norm = norm
@@ -65,30 +67,40 @@ class Tokenizer(nn.Module):
     def compute_loss(self, x: Input, **kwargs: Any) -> LossWithIntermediateLosses:
         z, z_quantized, x_rec = self(x)
 
-        # Codebook loss. Notes:
-        # - beta position is different from taming and identical to original VQVAE paper
+        # Codebook loss. Notes: https://lilianweng.github.io/posts/2018-08-12-vae/#vq-vae-and-vq-vae-2
+        # - beta position is different from taming-transformers and identical to original VQVAE paper
         # - VQVAE uses 0.25 by default
         beta = 1.0
-        commitment_loss = (z.detach() - z_quantized).pow(2).mean() + beta * (z - z_quantized.detach()).pow(2).mean()
+        
+        # Commitment loss: A measure to encourage the encoder output to stay close to the embedding space and to prevent it from fluctuating too frequently from one code vector to another.
+        commitment_loss = beta * (z - z_quantized.detach()).pow(2).mean()
+        
+        # VQ Loss: The L2 error between the embedding space and the encoder outputs.
+        # Note: with a fixed embedding space this is also fixed
+        vq_loss = (z.detach() - z_quantized).pow(2).mean()
 
+        # Otherp apers square this
         reconstruction_loss = torch.abs(x - x_rec)
         if self.importance_matrix is not None:
             reconstruction_loss = reconstruction_loss * self.importance_matrix.to(reconstruction_loss.device)
         reconstruction_loss = reconstruction_loss.mean()
 
-        return LossWithIntermediateLosses(commitment_loss=commitment_loss, reconstruction_loss=reconstruction_loss)
+        return LossWithIntermediateLosses(commitment_loss=commitment_loss, vq_loss=vq_loss, reconstruction_loss=reconstruction_loss)
 
     def encode(self, x: Input) -> TokenizerEncoderOutput:
         z, _ = self.encoder(x)
 
         z = rearrange(z, 'b l (a v) -> b l a v', v=self.tokens_per_layer)
-        b, l, e, v = z.shape
+        b, l, e, v = z.shape # batch, layers, vocab, tokens per layer
         z_flattened = rearrange(z, 'b l a v -> (b l v) a')
+        
+        # reverse embedding?
         dist_to_embeddings = torch.sum(z_flattened ** 2, dim=1, keepdim=True) + torch.sum(self.embedding.weight**2, dim=1) - 2 * torch.matmul(z_flattened, self.embedding.weight.t())
-
         tokens = dist_to_embeddings.argmin(dim=-1)
+        
+        # the forward embedding to get quantized z
         z_q = rearrange(self.embedding(tokens), '(b l v) e -> b l e v', b=b, l=l).contiguous()
-        tokens = rearrange(tokens, '(b l v) -> b l v', b=b, l=l, v=v).contiguous() # TODO add extra dim for tokens per layer
+        tokens = rearrange(tokens, '(b l v) -> b l v', b=b, l=l, v=v).contiguous() # add extra dim for tokens per layer
 
         return TokenizerEncoderOutput(z, z_q, tokens)
 
@@ -114,16 +126,16 @@ class TokenizedAutoEncoder(nn.Module):
         n_instances, n_input_ae = c_in
         self.ae_cfg = AutoEncoderConfig(
             n_instances=n_instances,
-            n_input_ae=n_input_ae,
-            n_hidden_ae=vocab_size * tokens_per_layer, # output size of decoder (tokens)
+            n_input_ae=n_input_ae, # input
+            n_hidden_ae=embed_dim * tokens_per_layer, # output size of encoder (tokens)
             encoder_sizes=encoder_sizes,
         )
         encoder = Encoder(self.ae_cfg)
 
         self.ae_cfg = AutoEncoderConfig(
-            n_instances=n_instances,
-            n_input_ae=n_input_ae,
-            n_hidden_ae=embed_dim * tokens_per_layer, # input channel to decoder (embedded tokens)
+            n_instances=n_instances, 
+            n_input_ae=n_input_ae, # output (reconstructed)
+            n_hidden_ae=embed_dim * tokens_per_layer, # input, embedded tokens
             encoder_sizes=encoder_sizes,
         )
         decoder = Decoder(self.ae_cfg)
