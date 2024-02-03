@@ -77,6 +77,31 @@ class NormedLinears(nn.Module):
     
     def __rep__(self):
         return f"NormedLinears({self.linears[0]})"
+    
+class Linears(nn.Module):
+    def __init__(
+        self,
+        n_instances: int,
+        n_input_ae: int,
+        n_output: int,
+        act: Callable = nn.ReLU(),
+        bias=True,
+    ):
+        super().__init__()
+        self.linears = nn.ModuleList(
+            nn.Linear(n_input_ae, n_output, bias=bias)
+            for _ in range(n_instances)
+        )
+        self.act = act
+
+    def forward(self, x: Tensor) -> Tensor:
+        x = t.stack([m(x[:, i]) for i, m in enumerate(self.linears)], dim=1)
+        if self.act is not None:
+            x = self.act(x)
+        return x
+    
+    def __rep__(self):
+        return f"act={self.act}, bias={self.bias}, Linears({self.linears[0]})"
 
 
 class AffineInstanceNorm1d(nn.BatchNorm1d):
@@ -123,7 +148,7 @@ class Encoder(nn.Module):
         self.encoder = []
         for i in range(depth - 2):
             self.encoder.append(
-                NormedLinears(cfg.n_instances, encoder_sizes[i], encoder_sizes[i + 1], 
+                Linears(cfg.n_instances, encoder_sizes[i], encoder_sizes[i + 1], 
                               bias=(i>1),
                               )
             )
@@ -141,7 +166,7 @@ class Encoder(nn.Module):
 
         # final layer
         self.encoder.append(
-            NormedLinears(
+            Linears(
                 cfg.n_instances,
                 encoder_sizes[-2],
                 cfg.n_hidden_ae,

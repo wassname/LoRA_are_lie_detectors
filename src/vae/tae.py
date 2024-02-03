@@ -84,6 +84,7 @@ class PL_TAE(PLBase):
         )
         self.log(f"{stage}/commitment_loss", info0['commitment_loss'], on_epoch=True, on_step=False)
         self.log(f"{stage}/reconstruction_loss", info0['reconstruction_loss'], on_epoch=True, on_step=False)
+        self.log(f"{stage}/vq_loss", info0['vq_loss'], on_epoch=True, on_step=False)
         self.log(
             f"{stage}/n",
             float(len(y)),

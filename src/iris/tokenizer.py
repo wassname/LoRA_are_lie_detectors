@@ -79,8 +79,8 @@ class Tokenizer(nn.Module):
         # Note: with a fixed embedding space this is also fixed
         vq_loss = (z.detach() - z_quantized).pow(2).mean()
 
-        # Otherp apers square this
-        reconstruction_loss = torch.abs(x - x_rec)
+        # Other papers square this
+        reconstruction_loss = torch.abs(x - x_rec)**2
         if self.importance_matrix is not None:
             reconstruction_loss = reconstruction_loss * self.importance_matrix.to(reconstruction_loss.device)
         reconstruction_loss = reconstruction_loss.mean()

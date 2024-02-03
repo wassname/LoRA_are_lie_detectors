@@ -1114,3 +1114,85 @@ And none work as well as I would expect (near100%)
 
 this makes me think that I am not looking at the internals correctly.
 
+
+# 2024-01-28 16:37:01
+
+So I'm considering new approach and chatting with Eleuther
+
+I'm considering forcing a model to use a pretrained embedding. How do do that?
+
+I can reverse an embedding, but it's amplitude is not the same. Still that's fine for just a bottleneck that can be tokenized right?
+
+But do I need to quantize to longs first? In that case I can insert it into my TAE
+
+- [ ] try embedding layer in TAE!
+
+wait how will we make sure the same concept map to meaningfull words?
+we might have to make sure the last layer, maps to the same words? before, after reconstruction, and in the latent space?
+
+
+If I ask to "fix the spelling," "polish his text," etc., then it rewrites the text. But I have to check its, sometimes subtle changes. A diff helps, and not the normal line-level diff that it produces when asked. A word-level diff, so I can see which word it changed.
+
+TODO
+
+- swap tokenizer embedding with phi one
+- maybe it should also be the reversible one
+- oh and the final cls layer before the latent space too?
+- then see if it's interpretable
+train
+
+
+With no fixed embedings
+
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0,1]
+|                     |   train |     val |    test |    ood |
+|:--------------------|--------:|--------:|--------:|-------:|
+| loss_rec_epoch      |   0.569 |   0.585 |   0.556 |   0.57 |
+| commitment_loss     |   0     |   0     |   0     |   0    |
+| reconstruction_loss |   0.569 |   0.585 |   0.556 |   0.57 |
+| n                   | 307     | 154     | 154     | 615    |
+
+with fixed embeddings
+
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0,1]
+|                     |   train |     val |    test |     ood |
+|:--------------------|--------:|--------:|--------:|--------:|
+| loss_rec_epoch      |  31.545 |   8.136 |  14.103 |  21.316 |
+| commitment_loss     |  31.057 |   7.598 |  13.603 |  20.812 |
+| reconstruction_loss |   0.489 |   0.538 |   0.5   |   0.504 |
+| n                   | 307     | 154     | 154     | 615     |
+
+
+oh and with 12 tokens per layer 
+
+
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0,1]
+|                     |   train |     val |    test |     ood |
+|:--------------------|--------:|--------:|--------:|--------:|
+| loss_rec_epoch      |   0.591 |   0.607 |   0.577 |   0.591 |
+| n                   | 307     | 154     | 154     | 615     |
+
+
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0,1]
+|                     |   train |     val |    test |     ood |
+|:--------------------|--------:|--------:|--------:|--------:|
+| loss_rec_epoch      |   0.585 |   0.601 |   0.572 |   0.586 |
+| commitment_loss     |   0.008 |   0.008 |   0.008 |   0.008 |
+| reconstruction_loss |   0.57  |   0.586 |   0.557 |   0.571 |
+| vq_loss             |   0.008 |   0.008 |   0.008 |   0.008 |
+| n                   | 307     | 154     | 154     | 615     |
+
+# Some thoughts from the last week 2024-02-02 12:21:02
+
+- If it's just hidden information, why can't a probe just learn it in a SL manner? Most likely the informaiton isn't there, or you request every activation (which seems like a big data problem)
+- JDP suggested VAE, then SAE, two step process which is more scalable. Compress, then disentangle.
+- But why do we need to disentangle? It might not be possible, it might not be effecient, it might not be linear. Just a normal SL setup on all the activations???
+
+
+I'm pausing this as
+- the TAE doesn't seem to help
+- it seems the information just isn't there with current LLM's, e.g. no concept in latent space. I'm just measuring mistakes which it has no idea of.
+  - TODO confirm in data
+- Because a deep probe on 100% of hidden spaces should be able to get 100% otherwise. On train at least, but also on val and OOD I would hope (this could be a good paper?)
+
+Might be more fruitfull to think about world models!
