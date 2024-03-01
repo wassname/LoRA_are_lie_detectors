@@ -1,15 +1,19 @@
 # Adapters are end-to-end probes
 
 
+Typically, most Language Learning Model (LLM) probes train a linear classifier on the LLM's residual stream or use a sparse autoencoder. However, an alternative approach is to utilize an adapter, such as LoRA. Instead of only training the hidden states, this method involves end-to-end backpropagation. The key questions are: How does this function? How well does it generalize?
 
-Most LLM probes train a linear classifier on top of the LLM residual stream. Or a sparse autoencoder on the LLM's residual stream. But what if we use an adapter, such as LoRA, isntead. Instead of jus training of the hidden states, we train it using end-to-end backpropagation. How does this work? How does it generalise?
+Refer to the branches for details on my experiments.
 
-See the branches for some of my experiments. 
+Stylized Facts:
 
-Styilized facts:
-- using an adapter as an importance matrix in a SAE does not seem to help
-- using the activations from adapters as counterfactual residual streams do not seem to help significantly
-- using Sparse Autoencoders or VQ-VAE (tokenized autoencoders) does not significantly help in this case (although I think VQ-VAE interpreatility project may hold great promise)
+- Implementing an adapter as an importance matrix in a Sparse Autoencoder (SAE) does not seem beneficial.
+- Utilizing the activations from adapters as counterfactual residual streams does not significantly improve results.
+- The use of Sparse Autoencoders or VQ-VAE (tokenized autoencoders) does not noticeably enhance the outcome in this context (although the VQ-VAE interpretability project appears promising).
 
-Future work:
-- I've been using Phi-2 on datasets where it gets the wrong answer. To progress this I think I need a more reliable and natural way to produce deception that I can measure
+Future Work:
+
+- I've been applying Phi-2 on datasets where it returns incorrect answers. To advance this, I believe a more reliable and natural method to generate and measure deception is necessary.
+
+Related work:
+- https://github.com/wassname/discovering_latent_knowledge
